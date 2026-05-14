@@ -223,7 +223,6 @@ export default function App() {
       { name: 'Intuição', bonus: floor((2 * E + I) / 3) },
       { name: 'Jogatina', bonus: floor((2 * D + 2 * I + E) / 5) },
       { name: 'Ladinagem', bonus: floor((3 * D + I + E) / 5) },
-      { name: 'Luta Básico', bonus: floor((3 * F + 2 * D + I + E) / 7) },
       { name: 'Manha', bonus: floor((2 * I + 2 * E + C) / 5) },
       { name: 'Natureza', bonus: floor((3 * I + E + C) / 5) },
       { name: 'Nobreza', bonus: floor((4 * C + 2 * I + E) / 7) },
@@ -809,7 +808,7 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
                   {ELEMENTS_LIST.map(el => (
-                    <div key={el} className="flex justify-between items-center bg-white/5 p-1.5 rounded-sm border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
+                    <div key={el} className={`flex justify-between items-center bg-white/5 p-1.5 rounded-sm border border-emerald-500/10 hover:border-emerald-500/30 transition-colors ${el === 'Espírito' ? 'sm:col-span-2' : ''}`}>
                       <span className="text-[9px] font-bold uppercase tracking-tight">{el}</span>
                       <input 
                         type="number"
