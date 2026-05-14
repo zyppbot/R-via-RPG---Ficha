@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Primitive Definitions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 2. Character Validation Blueprint
+    function isValidCharacter(data) {
+      return data.userId is string && 
+             data.userId == request.auth.uid &&
+             data.name is string && 
+             data.name.size() > 0 && 
+             data.name.size() <= 150 &&
+             data.attributes is map &&
+             data.stats is map &&
+             data.stats.pv is map &&
+             data.stats.pm is map &&
+             data.inventory is list &&
+             data.inventory.size() <= 100 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 5000));
+    }
+
+    // 3. Collection Rules
+    match /characters/{characterId} {
+      // Create: user must be authenticated, use their own UID, and set initial timestamps
+      allow create: if isSignedIn() && 
+                      isValidId(characterId) && 
+                      isValidCharacter(incoming()) && 
+                      incoming().createdAt == request.time &&
+                      incoming().updatedAt == request.time;
+      
+      // Update: user must own the character, cannot change userId or createdAt, and must update updatedAt
+      allow update: if isSignedIn() && 
+                      isOwner(existing().userId) && 
+                      isValidCharacter(incoming()) && 
+                      incoming().userId == existing().userId &&
+                      incoming().id == existing().id &&
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().updatedAt == request.time;
+      
+      // Delete: only the owner
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+      
+      // Read: individual character or list (enforced query protection)
+      allow get: if isSignedIn() && isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    // 4. Test connection path
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

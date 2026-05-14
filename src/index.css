@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Spectral:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Spectral", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+
+  --color-ruvia-bg: #0c0c0c;
+  --color-ruvia-card: #141414;
+  --color-ruvia-panel: #1a1a1a;
+  --color-ruvia-text: #e0d2bc;
+  --color-ruvia-accent: #b58e58;
+  --color-ruvia-border: rgba(181, 142, 88, 0.3);
+}
+
+@layer base {
+  body {
+    @apply bg-ruvia-bg text-ruvia-text font-serif min-h-screen selection:bg-ruvia-accent selection:text-ruvia-bg;
+  }
+}
+
+.ruvia-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ruvia-scrollbar::-webkit-scrollbar-track {
+  @apply bg-ruvia-bg;
+}
+
+.ruvia-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-ruvia-accent/50 rounded-full;
+}
