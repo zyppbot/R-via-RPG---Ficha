@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sword, 
@@ -35,7 +35,8 @@ import {
   Unlock,
   Coins,
   Package,
-  LogOut,
+  Download,
+  Upload,
   User
 } from 'lucide-react';
 import { 
@@ -52,117 +53,46 @@ import {
   ELEMENTS_LIST 
 } from './constants';
 import { ORIGINS, Origin } from './originData';
-import { auth, db, signInWithGoogle, logout } from './firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
-  where,
-  getDocFromServer,
-  serverTimestamp
-} from 'firebase/firestore';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 export default function App() {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [characters, setCharacters] = useState<CharacterSheet[]>([]);
-
   const [activeId, setActiveId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'sheet'>('list');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load from localStorage on mount
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-
-    // Validate connection to Firestore
-    const testConnection = async () => {
+    const saved = localStorage.getItem('ruvia_characters');
+    if (saved) {
       try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
-        }
+        const parsed = JSON.parse(saved) as CharacterSheet[];
+        setCharacters(parsed.map(char => ({
+          ...INITIAL_CHARACTER,
+          ...char,
+          stats: {
+            ...INITIAL_CHARACTER.stats,
+            ...(char.stats || {})
+          },
+          attributes: {
+            ...INITIAL_CHARACTER.attributes,
+            ...(char.attributes || {})
+          }
+        })));
+      } catch (e) {
+        console.error("Erro ao carregar do local storage", e);
+        setCharacters([]);
       }
     }
-    testConnection();
-
-    return () => unsubscribeAuth();
+    setLoading(false);
   }, []);
 
+  // Save to localStorage whenever characters change
   useEffect(() => {
-    if (!user) {
-      setCharacters([]);
-      return;
+    if (!loading) {
+      localStorage.setItem('ruvia_characters', JSON.stringify(characters));
     }
-
-    const q = query(collection(db, 'characters'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const charList = snapshot.docs.map(doc => ({
-        ...INITIAL_CHARACTER,
-        ...doc.data(),
-        id: doc.id
-      })) as CharacterSheet[];
-      setCharacters(charList);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'characters');
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+  }, [characters, loading]);
 
   const activeCharacter = useMemo(() => {
     return characters.find(c => c.id === activeId) || characters[0] || INITIAL_CHARACTER;
@@ -174,15 +104,45 @@ export default function App() {
     return sum || 1;
   }, [activeCharacter?.specializations]);
 
-  const updateCharacter = async (updates: Partial<CharacterSheet>) => {
-    if (!user || !activeCharacter) return;
+  const updateCharacter = (updates: Partial<CharacterSheet>) => {
+    if (!activeCharacter || activeCharacter === INITIAL_CHARACTER) return;
     
-    const charDoc = doc(db, 'characters', activeCharacter.id);
-    try {
-      await updateDoc(charDoc, { ...updates, updatedAt: serverTimestamp() });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `characters/${activeCharacter.id}`);
-    }
+    setCharacters(prev => prev.map(c => 
+      c.id === activeCharacter.id 
+        ? { ...c, ...updates, updatedAt: new Date().toISOString() } 
+        : c
+    ));
+  };
+
+  const exportCharacters = () => {
+    const dataStr = JSON.stringify(characters, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = 'ruvia_personagens_backup.json';
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const importCharacters = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target?.result as string) as CharacterSheet[];
+        if (Array.isArray(imported)) {
+          setCharacters(imported);
+          alert(`${imported.length} personagens carregados com sucesso!`);
+        }
+      } catch (err) {
+        alert("Erro ao importar arquivo. Verifique se o formato está correto.");
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const updateAttr = (key: keyof CharacterAttributes, val: number) => {
@@ -366,15 +326,13 @@ export default function App() {
     }
   }, [statsWithOrigin.pv.max, statsWithOrigin.pm.max, activeCharacter.id]);
 
-  const addNewCharacter = async () => {
-    if (!user) return;
+  const addNewCharacter = () => {
     const id = Math.random().toString(36).substr(2, 9);
     const initialSpecializations = { 'Lutador': 1 };
     
     const newChar: CharacterSheet = {
       ...INITIAL_CHARACTER,
       id,
-      userId: (user as any).uid, // Inject userId for ownership
       name: 'Novo Herói',
       specializations: initialSpecializations,
       stats: {
@@ -382,30 +340,19 @@ export default function App() {
         pm: { current: 5, max: 5 },
       },
       level: 1,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    } as any;
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     
-    try {
-      await setDoc(doc(db, 'characters', id), newChar);
-      setActiveId(id);
-      setView('sheet');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `characters/${id}`);
-    }
+    setCharacters(prev => [...prev, newChar]);
+    setActiveId(id);
+    setView('sheet');
   };
 
-  const deleteCharacter = async (id: string, e: React.MouseEvent) => {
+  const deleteCharacter = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (characters.length > 0) {
-      const charDoc = doc(db, 'characters', id);
-      try {
-        await deleteDoc(charDoc);
-        if (activeId === id) setActiveId(null);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `characters/${id}`);
-      }
-    }
+    setCharacters(prev => prev.filter(c => c.id !== id));
+    if (activeId === id) setActiveId(null);
   };
 
   const addItemToInventory = (item: Item) => {
@@ -428,60 +375,37 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-ruvia-bg flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-ruvia-card border border-ruvia-accent/30 p-8 rounded-sm shadow-2xl text-center"
-        >
-          <div className="mb-6 flex flex-col items-center">
-            <div className="w-16 h-16 bg-ruvia-accent/10 border border-ruvia-accent rounded-full flex items-center justify-center mb-4">
-              <Sword size={32} className="text-ruvia-accent" />
-            </div>
-            <p className="text-ruvia-accent uppercase tracking-[0.4em] text-[10px] font-bold mb-2">Rúvia RPG System</p>
-            <h1 className="text-4xl font-black italic uppercase italic">Bem-vindo, Viajante</h1>
-          </div>
-          
-          <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-            Faça login para salvar suas fichas de personagem na nuvem e acessá-las de qualquer lugar.
-          </p>
-
-          <button 
-            onClick={signInWithGoogle}
-            className="w-full bg-white text-black h-12 flex items-center justify-center gap-3 font-bold uppercase tracking-widest text-xs hover:bg-gray-200 transition-colors rounded-sm"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-            Entrar com Google
-          </button>
-          
-          <footer className="mt-12 text-[8px] uppercase tracking-[0.2em] text-ruvia-accent/30">
-            © MMXXIV RÚVIA RPG • O DESTINO TE AGUARDA
-          </footer>
-        </motion.div>
-      </div>
-    );
-  }
-
   if (view === 'list') {
     return (
       <div className="max-w-[1024px] mx-auto min-h-screen p-8 flex flex-col gap-8 select-none">
-        <header className="flex justify-between items-end border-b-2 border-ruvia-accent pb-6">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-ruvia-accent pb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <p className="text-ruvia-accent uppercase tracking-[0.3em] text-[10px] font-sans font-bold">Rúvia RPG</p>
               <span className="w-1 h-1 rounded-full bg-ruvia-accent/30"></span>
-              <p className="text-gray-500 uppercase tracking-[0.1em] text-[9px] font-bold">{user.email}</p>
+              <p className="text-gray-500 uppercase tracking-[0.1em] text-[9px] font-bold">Gerenciador Offline</p>
             </div>
             <h1 className="text-5xl font-black italic uppercase tracking-tighter">Personagens</h1>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4 mt-4 md:mt-0">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={importCharacters} 
+              className="hidden" 
+              accept=".json"
+            />
             <button 
-              onClick={logout}
-              className="px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs text-ruvia-accent/60 hover:text-red-500 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs text-ruvia-accent/60 hover:text-ruvia-accent transition-colors border border-ruvia-accent/20 rounded-sm"
             >
-              <LogOut size={16} /> Sair
+              <Upload size={16} /> Carregar Backup
+            </button>
+            <button 
+              onClick={exportCharacters}
+              className="px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs text-ruvia-accent/60 hover:text-ruvia-accent transition-colors border border-ruvia-accent/20 rounded-sm"
+            >
+              <Download size={16} /> Salvar Backup
             </button>
             <button 
               onClick={addNewCharacter}
@@ -497,12 +421,20 @@ export default function App() {
             <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-30">
               <User size={64} />
               <p className="mt-4 uppercase tracking-[0.3em] font-bold">Nenhum personagem encontrado</p>
-              <button 
-                onClick={addNewCharacter}
-                className="mt-6 text-ruvia-accent border border-ruvia-accent px-4 py-2 hover:bg-ruvia-accent hover:text-ruvia-bg transition-all font-bold uppercase text-xs"
-              >
-                Criar Primeiro Herói
-              </button>
+              <div className="flex gap-4 mt-6">
+                 <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-gray-400 border border-gray-400/30 px-4 py-2 hover:bg-white/5 transition-all font-bold uppercase text-xs"
+                >
+                  Carregar Backup
+                </button>
+                <button 
+                  onClick={addNewCharacter}
+                  className="text-ruvia-accent border border-ruvia-accent px-4 py-2 hover:bg-ruvia-accent hover:text-ruvia-bg transition-all font-bold uppercase text-xs"
+                >
+                  Criar Primeiro Herói
+                </button>
+              </div>
             </div>
           ) : characters.map(char => (
             <motion.div
