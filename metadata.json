@@ -1,6 +1,6 @@
 {
   "name": "Rúvia RPG: Gerenciador de Fichas",
-  "description": "Sistema de gerenciamento de fichas de personagem para o sistema Rúvia RPG, com design artístico e suporte completo em português brasileiro.",
+  "description": "Sistema offline de gerenciamento de fichas para Rúvia RPG. Salva dados localmente no navegador e permite exportar backups em JSON.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
