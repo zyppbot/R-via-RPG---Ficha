@@ -296,6 +296,12 @@ export default function App() {
     updateCharacter({ unlockedSkills: newUnlocked });
   };
 
+  const defenseValue = useMemo(() => {
+    const { forca: F, destreza: D, vigor: V } = effectiveAttributes;
+    const lvl = totalLevel;
+    return Math.floor(8 + (lvl / 3) + ((3 * D + 2 * V + F) / 6));
+  }, [effectiveAttributes, totalLevel]);
+
   const [prevMaxStats, setPrevMaxStats] = useState<{ [charId: string]: { pv: number, pm: number } }>({});
 
   useEffect(() => {
@@ -516,6 +522,20 @@ export default function App() {
                     ).find(s => s.name === 'Fortitude')?.bonus || 0)) + 
                     (char.pmAdjustment || 0)
                   } PM
+                </div>
+                <div className="flex items-center gap-1">
+                  <Shield size={10} className="text-gray-400" />
+                  {(() => {
+                    const origin = ORIGINS.find(o => o.name === char.origin);
+                    const bonuses = origin?.attributeBonuses || {};
+                    const eff = {
+                      forca: (char.attributes.forca || 0) + (bonuses.forca || 0) + (bonuses.all || 0),
+                      destreza: (char.attributes.destreza || 0) + (bonuses.destreza || 0) + (bonuses.all || 0),
+                      vigor: (char.attributes.vigor || 0) + (bonuses.vigor || 0) + (bonuses.all || 0),
+                    };
+                    const lvl = (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1;
+                    return Math.floor(8 + (lvl / 3) + ((3 * eff.destreza + 2 * eff.vigor + eff.forca) / 6));
+                  })()} DEF
                 </div>
                 <div className="flex items-center gap-1">
                   <Package size={10} /> {char.origin || 'SEM ORIGEM'}
@@ -761,6 +781,22 @@ export default function App() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Defense Display */}
+            <div className="p-4 bg-ruvia-panel/50 border border-ruvia-accent/20 rounded-sm shadow-inner mt-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className="text-ruvia-accent" />
+                  <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest">Defesa Total</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black text-white italic">{defenseValue}</span>
+                </div>
+              </div>
+              <p className="text-[8px] text-gray-500 uppercase font-bold mt-2 leading-tight">
+                Reflete sua capacidade de evitar golpes e resistir a danos físicos.
+              </p>
             </div>
           </aside>
 
