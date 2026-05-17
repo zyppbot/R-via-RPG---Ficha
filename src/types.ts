@@ -59,8 +59,11 @@ export interface CharacterSheet {
   elements: { [name: string]: number };
   skillTraining: { [skillName: string]: number };
   unlockedSkills: string[];
+  defenseAdjustment: number;
   quickNote: {
     label: string;
     content: string;
   };
+  createdAt?: string;
+  updatedAt?: string;
 }

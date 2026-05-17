@@ -37,6 +37,7 @@ export const INITIAL_CHARACTER: CharacterSheet = {
   elements: {},
   skillTraining: {},
   unlockedSkills: [],
+  defenseAdjustment: 0,
   quickNote: {
     label: 'Anotação Rápida',
     content: 'Prosperidade de Rúvia',

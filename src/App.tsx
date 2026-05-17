@@ -299,8 +299,8 @@ export default function App() {
   const defenseValue = useMemo(() => {
     const { forca: F, destreza: D, vigor: V } = effectiveAttributes;
     const lvl = totalLevel;
-    return Math.floor(8 + (lvl / 3) + ((3 * D + 2 * V + F) / 6));
-  }, [effectiveAttributes, totalLevel]);
+    return Math.floor(8 + (lvl / 3) + ((3 * D + 2 * V + F) / 6)) + (activeCharacter.defenseAdjustment || 0);
+  }, [effectiveAttributes, totalLevel, activeCharacter.defenseAdjustment]);
 
   const [prevMaxStats, setPrevMaxStats] = useState<{ [charId: string]: { pv: number, pm: number } }>({});
 
@@ -534,7 +534,7 @@ export default function App() {
                       vigor: (char.attributes.vigor || 0) + (bonuses.vigor || 0) + (bonuses.all || 0),
                     };
                     const lvl = (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1;
-                    return Math.floor(8 + (lvl / 3) + ((3 * eff.destreza + 2 * eff.vigor + eff.forca) / 6));
+                    return Math.floor(8 + (lvl / 3) + ((3 * eff.destreza + 2 * eff.vigor + eff.forca) / 6)) + (char.defenseAdjustment || 0);
                   })()} DEF
                 </div>
                 <div className="flex items-center gap-1">
@@ -790,8 +790,17 @@ export default function App() {
                   <Shield size={16} className="text-ruvia-accent" />
                   <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest">Defesa Total</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-white italic">{defenseValue}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-baseline gap-1 mr-2">
+                    <span className="text-3xl font-black text-white italic">{defenseValue}</span>
+                  </div>
+                  <input 
+                    type="number"
+                    placeholder="±"
+                    className="w-10 bg-ruvia-bg text-ruvia-accent text-xs font-bold text-center border border-ruvia-accent/30 rounded py-1 outline-none hover:border-ruvia-accent transition-colors"
+                    value={activeCharacter.defenseAdjustment || 0}
+                    onChange={e => updateCharacter({ defenseAdjustment: parseInt(e.target.value) || 0 })}
+                  />
                 </div>
               </div>
               <p className="text-[8px] text-gray-500 uppercase font-bold mt-2 leading-tight">
