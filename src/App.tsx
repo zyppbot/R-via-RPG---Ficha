@@ -37,7 +37,9 @@ import {
   Package,
   Download,
   Upload,
-  User
+  User,
+  HeartOff,
+  ZapOff
 } from 'lucide-react';
 import { 
   CharacterSheet, 
@@ -265,8 +267,15 @@ export default function App() {
     const fortitude = currentSkills.find(s => s.name === 'Fortitude')?.bonus || 0;
     const arcanismo = currentSkills.find(s => s.name === 'Arcanismo')?.bonus || 0;
 
-    const maxPV = 10 + (pvPerLvl * totalLevel) + (6 * fortitude) + (activeCharacter.pvAdjustment || 0);
-    const maxPM = 5 + (pmPerLvl * totalLevel) + (2 * arcanismo) + (2 * fortitude) + (activeCharacter.pmAdjustment || 0);
+    let maxPV = 10 + (pvPerLvl * totalLevel) + (6 * fortitude) + (activeCharacter.pvAdjustment || 0);
+    let maxPM = 5 + (pmPerLvl * totalLevel) + (2 * arcanismo) + (2 * fortitude) + (activeCharacter.pmAdjustment || 0);
+
+    if (activeCharacter.pvReduced) {
+      maxPV -= 3 * totalLevel;
+    }
+    if (activeCharacter.pmReduced) {
+      maxPM -= 3 * totalLevel;
+    }
 
     return {
       pv: { 
@@ -278,7 +287,7 @@ export default function App() {
         max: maxPM 
       }
     };
-  }, [activeCharacter.stats, activeCharacter.origin, totalLevel, currentSkills, activeCharacter.pvAdjustment, activeCharacter.pmAdjustment]);
+  }, [activeCharacter.stats, activeCharacter.origin, totalLevel, currentSkills, activeCharacter.pvAdjustment, activeCharacter.pmAdjustment, activeCharacter.pvReduced, activeCharacter.pmReduced]);
 
   const trainingPoints = useMemo(() => {
     if (!activeCharacter) return 0;
@@ -299,7 +308,7 @@ export default function App() {
   const defenseValue = useMemo(() => {
     const { forca: F, destreza: D, vigor: V } = effectiveAttributes;
     const lvl = totalLevel;
-    return Math.floor(8 + (lvl / 3) + ((3 * D + 2 * V + F) / 6)) + (activeCharacter.defenseAdjustment || 0);
+    return (8 + D + Math.ceil((lvl + (2 * V) + F) / 3)) + (activeCharacter.defenseAdjustment || 0);
   }, [effectiveAttributes, totalLevel, activeCharacter.defenseAdjustment]);
 
   const [prevMaxStats, setPrevMaxStats] = useState<{ [charId: string]: { pv: number, pm: number } }>({});
@@ -473,10 +482,9 @@ export default function App() {
               <div className="mt-6 flex flex-wrap gap-4 text-[10px] uppercase font-bold opacity-60">
                 <div className="flex items-center gap-1">
                   <Heart size={10} className="text-red-500" /> 
-                  {char.stats.pv.current}/{
-                    10 + 
-                    ((ORIGINS.find(o => o.name === char.origin)?.pvPerLevel || 0) * ((Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1)) + 
-                    (6 * (calculateSkills(
+                  {(() => {
+                    const lvl = (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1;
+                    const bonusFortitude = calculateSkills(
                       {
                         forca: char.attributes.forca + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.forca || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
                         destreza: char.attributes.destreza + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.destreza || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
@@ -485,43 +493,39 @@ export default function App() {
                         expressao: char.attributes.expressao + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.expressao || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
                         carisma: char.attributes.carisma + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.carisma || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
                       },
-                      (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1,
+                      lvl,
                       char.skillTraining || {}
-                    ).find(s => s.name === 'Fortitude')?.bonus || 0)) + 
-                    (char.pvAdjustment || 0)
-                  } PV
+                    ).find(s => s.name === 'Fortitude')?.bonus || 0;
+                    const pvPerLvl = ORIGINS.find(o => o.name === char.origin)?.pvPerLevel || 0;
+                    let maxPV = 10 + (pvPerLvl * lvl) + (6 * bonusFortitude) + (char.pvAdjustment || 0);
+                    if (char.pvReduced) {
+                      maxPV -= (3 * lvl);
+                    }
+                    return `${char.stats.pv.current}/${maxPV}`;
+                  })()} PV
                 </div>
                 <div className="flex items-center gap-1">
                   <Zap size={10} className="text-blue-400" /> 
-                  {char.stats.pm.current}/{
-                    5 + 
-                    ((ORIGINS.find(o => o.name === char.origin)?.pmPerLevel || 0) * ((Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1)) + 
-                    (2 * (calculateSkills(
-                      {
-                        forca: char.attributes.forca + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.forca || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        destreza: char.attributes.destreza + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.destreza || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        vigor: char.attributes.vigor + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.vigor || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        intelecto: char.attributes.intelecto + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.intelecto || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        expressao: char.attributes.expressao + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.expressao || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        carisma: char.attributes.carisma + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.carisma || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                      },
-                      (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1,
-                      char.skillTraining || {}
-                    ).find(s => s.name === 'Arcanismo')?.bonus || 0)) + 
-                    (2 * (calculateSkills(
-                      {
-                        forca: char.attributes.forca + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.forca || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        destreza: char.attributes.destreza + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.destreza || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        vigor: char.attributes.vigor + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.vigor || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        intelecto: char.attributes.intelecto + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.intelecto || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        expressao: char.attributes.expressao + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.expressao || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                        carisma: char.attributes.carisma + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.carisma || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
-                      },
-                      (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1,
-                      char.skillTraining || {}
-                    ).find(s => s.name === 'Fortitude')?.bonus || 0)) + 
-                    (char.pmAdjustment || 0)
-                  } PM
+                  {(() => {
+                    const lvl = (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1;
+                    const attrs = {
+                      forca: char.attributes.forca + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.forca || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
+                      destreza: char.attributes.destreza + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.destreza || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
+                      vigor: char.attributes.vigor + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.vigor || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
+                      intelecto: char.attributes.intelecto + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.intelecto || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
+                      expressao: char.attributes.expressao + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.expressao || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
+                      carisma: char.attributes.carisma + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.carisma || 0) + (ORIGINS.find(o => o.name === char.origin)?.attributeBonuses.all || 0),
+                    };
+                    const skills = calculateSkills(attrs, lvl, char.skillTraining || {});
+                    const arcanismo = skills.find(s => s.name === 'Arcanismo')?.bonus || 0;
+                    const fortitude = skills.find(s => s.name === 'Fortitude')?.bonus || 0;
+                    const pmPerLvl = ORIGINS.find(o => o.name === char.origin)?.pmPerLevel || 0;
+                    let maxPM = 5 + (pmPerLvl * lvl) + (2 * arcanismo) + (2 * fortitude) + (char.pmAdjustment || 0);
+                    if (char.pmReduced) {
+                      maxPM -= (3 * lvl);
+                    }
+                    return `${char.stats.pm.current}/${maxPM}`;
+                  })()} PM
                 </div>
                 <div className="flex items-center gap-1">
                   <Shield size={10} className="text-gray-400" />
@@ -534,7 +538,7 @@ export default function App() {
                       vigor: (char.attributes.vigor || 0) + (bonuses.vigor || 0) + (bonuses.all || 0),
                     };
                     const lvl = (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1;
-                    return Math.floor(8 + (lvl / 3) + ((3 * eff.destreza + 2 * eff.vigor + eff.forca) / 6)) + (char.defenseAdjustment || 0);
+                    return (8 + eff.destreza + Math.ceil((lvl + (2 * eff.vigor) + eff.forca) / 3)) + (char.defenseAdjustment || 0);
                   })()} DEF
                 </div>
                 <div className="flex items-center gap-1">
@@ -704,17 +708,53 @@ export default function App() {
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* Status Bars */}
+            </div>            {/* Status Bars */}
             <div className="space-y-6">
               {[
                 { label: 'PONTOS DE VIDA', key: 'pv', color: 'bg-red-700' },
                 { label: 'PONTOS DE MANA', key: 'pm', color: 'bg-blue-600' },
               ].map(stat => (
                 <div key={stat.key}>
-                  <div className="flex justify-between text-[10px] uppercase tracking-wider mb-1 font-bold">
-                    <span>{stat.label}</span>
+                  <div className="flex justify-between items-center text-[10px] uppercase tracking-wider mb-1 font-bold">
+                    <div className="flex items-center gap-2">
+                       <button
+                         type="button"
+                         onClick={() => {
+                           if (stat.key === 'pv') {
+                             updateCharacter({ pvReduced: !activeCharacter.pvReduced });
+                           } else {
+                             updateCharacter({ pmReduced: !activeCharacter.pmReduced });
+                           }
+                         }}
+                         className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-[8px] font-black tracking-wider uppercase transition-all ${
+                           stat.key === 'pv'
+                             ? activeCharacter.pvReduced
+                               ? 'bg-red-950/50 border-red-500/80 text-red-500 hover:bg-red-900/50 hover:border-red-400'
+                               : 'bg-transparent border-white/10 text-white/40 hover:bg-white/5 hover:border-white/20'
+                             : activeCharacter.pmReduced
+                               ? 'bg-blue-950/50 border-blue-500/80 text-blue-400 hover:bg-blue-900/50 hover:border-blue-400'
+                               : 'bg-transparent border-white/10 text-white/40 hover:bg-white/5 hover:border-white/20'
+                         }`}
+                         title={
+                           stat.key === 'pv'
+                             ? `Ativar/Desativar Redução de PV Máximo (-${3 * totalLevel})`
+                             : `Ativar/Desativar Redução de PM Máximo (-${3 * totalLevel})`
+                         }
+                       >
+                         {stat.key === 'pv' ? (
+                           <>
+                             <HeartOff size={10} className={activeCharacter.pvReduced ? "text-red-500" : ""} />
+                             <span>-{3 * totalLevel}</span>
+                           </>
+                         ) : (
+                           <>
+                             <ZapOff size={10} className={activeCharacter.pmReduced ? "text-blue-400" : ""} />
+                             <span>-{3 * totalLevel}</span>
+                           </>
+                         )}
+                       </button>
+                      <span>{stat.label}</span>
+                    </div>
                     <div className="flex items-center gap-1">
                       <input 
                         type="number"
@@ -748,6 +788,7 @@ export default function App() {
                 </div>
               ))}
             </div>
+
 
             {/* Soul Tests */}
             <div className="p-4 bg-ruvia-panel/50 border border-ruvia-accent/20 rounded-sm shadow-inner">

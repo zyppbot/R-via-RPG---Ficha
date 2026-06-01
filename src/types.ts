@@ -60,6 +60,8 @@ export interface CharacterSheet {
   skillTraining: { [skillName: string]: number };
   unlockedSkills: string[];
   defenseAdjustment: number;
+  pvReduced?: boolean;
+  pmReduced?: boolean;
   quickNote: {
     label: string;
     content: string;
