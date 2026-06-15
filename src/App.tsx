@@ -39,7 +39,8 @@ import {
   Upload,
   User,
   HeartOff,
-  ZapOff
+  ZapOff,
+  Star
 } from 'lucide-react';
 import { 
   CharacterSheet, 
@@ -154,10 +155,35 @@ export default function App() {
   };
 
   const updateSkillTraining = (skillName: string, val: number) => {
+    const maxAllowed = totalLevel + 2;
+    const clampedVal = Math.max(0, Math.min(val, maxAllowed));
     updateCharacter({
-      skillTraining: { ...activeCharacter.skillTraining, [skillName]: val }
+      skillTraining: { ...activeCharacter.skillTraining, [skillName]: clampedVal }
     });
   };
+
+  // Clamos and caps existing skill training points: max = totalLevel + 2
+  useEffect(() => {
+    if (!activeCharacter || !activeCharacter.skillTraining || !activeCharacter.id) return;
+    const maxAllowed = totalLevel + 2;
+    let modified = false;
+    const updatedTraining = { ...activeCharacter.skillTraining };
+    
+    Object.keys(updatedTraining).forEach((skillName) => {
+      const val = updatedTraining[skillName] || 0;
+      if (val > maxAllowed) {
+        updatedTraining[skillName] = maxAllowed;
+        modified = true;
+      } else if (val < 0) {
+        updatedTraining[skillName] = 0;
+        modified = true;
+      }
+    });
+
+    if (modified) {
+      updateCharacter({ skillTraining: updatedTraining });
+    }
+  }, [activeCharacter?.id, activeCharacter?.skillTraining, totalLevel]);
 
   const updateStatMax = (key: 'pv' | 'pm', newMax: number) => {
     const stat = activeCharacter.stats[key];
@@ -292,10 +318,12 @@ export default function App() {
   const trainingPoints = useMemo(() => {
     if (!activeCharacter) return 0;
     const origin = ORIGINS.find(o => o.name === activeCharacter.origin);
-    const base = origin?.trainingPoints || 0;
+    const base = (origin?.trainingPoints || 0) + 2 + (effectiveAttributes.intelecto || 0);
+    const levelUpPoints = (totalLevel - 1) + Math.floor(totalLevel / 5) * 2;
+    const totalTrainingPoints = base + levelUpPoints;
     const used = (Object.values(activeCharacter.skillTraining || {}) as number[]).reduce((a, b) => a + (b || 0), 0);
-    return base + (activeCharacter.trainingPointsAdjustment || 0) - used;
-  }, [activeCharacter.origin, activeCharacter.trainingPointsAdjustment, activeCharacter.skillTraining]);
+    return totalTrainingPoints + (activeCharacter.trainingPointsAdjustment || 0) - used;
+  }, [activeCharacter.origin, activeCharacter.trainingPointsAdjustment, activeCharacter.skillTraining, effectiveAttributes.intelecto, totalLevel]);
 
   const toggleSkillUnlock = (skillName: string) => {
     const isUnlocked = activeCharacter.unlockedSkills.includes(skillName);
@@ -303,6 +331,31 @@ export default function App() {
       ? activeCharacter.unlockedSkills.filter(s => s !== skillName)
       : [...activeCharacter.unlockedSkills, skillName];
     updateCharacter({ unlockedSkills: newUnlocked });
+  };
+
+  const isTestUsed = (i: number) => {
+    if (activeCharacter.soulTestsState && activeCharacter.soulTestsState[i] !== undefined) {
+      return activeCharacter.soulTestsState[i];
+    }
+    return i < (activeCharacter.soulTestsUsed || 0);
+  };
+
+  const toggleSoulTest = (i: number) => {
+    const isCurrentlyUsed = isTestUsed(i);
+    const nextUsed = !isCurrentlyUsed;
+    const length = Math.max(0, 3 + (currentSkills.find(s => s.name === 'Sobrevivência')?.bonus || 0) + activeCharacter.soulTestsAdjustment);
+    const newStateMap = { ...(activeCharacter.soulTestsState || {}) };
+    for (let idx = 0; idx < length; idx++) {
+      if (newStateMap[idx] === undefined) {
+        newStateMap[idx] = idx < (activeCharacter.soulTestsUsed || 0);
+      }
+    }
+    newStateMap[i] = nextUsed;
+    const newUsedCount = Object.values(newStateMap).filter(Boolean).length;
+    updateCharacter({
+      soulTestsState: newStateMap,
+      soulTestsUsed: newUsedCount
+    });
   };
 
   const defenseValue = useMemo(() => {
@@ -803,24 +856,43 @@ export default function App() {
                   />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: Math.max(0, 3 + (currentSkills.find(s => s.name === 'Sobrevivência')?.bonus || 0) + activeCharacter.soulTestsAdjustment) }).map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      const isCurrentlyUsed = i < activeCharacter.soulTestsUsed;
-                      const newUsed = isCurrentlyUsed ? i : i + 1;
-                      updateCharacter({ soulTestsUsed: newUsed });
-                    }}
-                    className={`w-6 h-6 rounded-full transition-all duration-700 flex items-center justify-center border ${
-                      i < activeCharacter.soulTestsUsed 
-                        ? 'bg-gray-800 border-white/5 opacity-20 shadow-none' 
-                        : 'bg-white/5 border-ruvia-accent shadow-[0_0_15px_rgba(165,180,252,0.8),inset_0_0_8px_rgba(255,255,255,0.4)] animate-pulse'
-                    }`}
-                  >
-                    <Sparkles size={12} className={i < activeCharacter.soulTestsUsed ? 'text-gray-600' : 'text-blue-100'} />
-                  </button>
-                ))}
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={() => updateCharacter({ soulTestStarActive: !activeCharacter.soulTestStarActive })}
+                  className={`w-8 h-8 rounded-full transition-all duration-500 flex items-center justify-center border ${
+                    activeCharacter.soulTestStarActive
+                      ? 'bg-yellow-500/10 border-yellow-500/80 shadow-[0_0_15px_rgba(234,179,8,0.6),inset_0_0_8px_rgba(255,255,255,0.4)]'
+                      : 'bg-gray-800 border-white/5 opacity-20 shadow-none'
+                  }`}
+                  title="Estrela Especial do Teste de Alma"
+                >
+                  <Star 
+                    size={16} 
+                    className={activeCharacter.soulTestStarActive ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'} 
+                  />
+                </button>
+                
+                {/* Divisor Visual */}
+                <div className="w-[1px] h-6 bg-white/10 mx-1"></div>
+
+                {Array.from({ length: Math.max(0, 3 + (currentSkills.find(s => s.name === 'Sobrevivência')?.bonus || 0) + activeCharacter.soulTestsAdjustment) }).map((_, i) => {
+                  const isCurrentlyUsed = isTestUsed(i);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => toggleSoulTest(i)}
+                      className={`w-6 h-6 rounded-full transition-all duration-700 flex items-center justify-center border ${
+                        isCurrentlyUsed 
+                          ? 'bg-gray-800 border-white/5 opacity-20 shadow-none' 
+                          : 'bg-white/5 border-ruvia-accent shadow-[0_0_15px_rgba(165,180,252,0.8),inset_0_0_8px_rgba(255,255,255,0.4)] animate-pulse'
+                      }`}
+                    >
+                      <Sparkles size={12} className={isCurrentlyUsed ? 'text-gray-600' : 'text-blue-100'} />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -33,6 +33,8 @@ export const INITIAL_CHARACTER: CharacterSheet = {
   pmAdjustment: 0,
   soulTestsUsed: 0,
   soulTestsAdjustment: 0,
+  soulTestsState: {},
+  soulTestStarActive: false,
   domains: {},
   elements: {},
   skillTraining: {},

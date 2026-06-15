@@ -55,6 +55,8 @@ export interface CharacterSheet {
   pmAdjustment: number;
   soulTestsUsed: number;
   soulTestsAdjustment: number;
+  soulTestsState?: { [key: number]: boolean };
+  soulTestStarActive?: boolean;
   domains: { [name: string]: number };
   elements: { [name: string]: number };
   skillTraining: { [skillName: string]: number };
