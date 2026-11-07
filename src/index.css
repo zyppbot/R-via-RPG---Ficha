@@ -1,7 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Spectral:ital,wght@0,400;0,700;1,400;1,700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./assets/fonts/Alegreya-Variable.woff2") format("woff2");
+}
 
 @font-face {
   font-family: "Macondo";
@@ -9,6 +16,38 @@
   font-weight: 400;
   font-display: swap;
   src: url("./assets/fonts/Macondo-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Rajdhani-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/Rajdhani-Semibold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IM Fell English";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/IMFellEnglish-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./assets/fonts/SpaceGrotesk-Variable.woff2") format("woff2");
 }
 
 @theme {
@@ -60,7 +99,7 @@
     radial-gradient(ellipse at 12% 18%, rgb(255 255 255 / 55%), transparent 48%),
     radial-gradient(ellipse at 88% 82%, rgb(142 103 58 / 12%), transparent 46%),
     repeating-linear-gradient(3deg, rgb(124 92 52 / 3%) 0 1px, transparent 1px 5px);
-  font-family: "Macondo", "Herculanum Roman", "Papyrus", fantasy;
+  font-family: "Macondo", serif;
 }
 
 .supplement-quatro-elementos .text-white,
@@ -79,7 +118,7 @@
   color: #f3f4f6;
   background-color: #050505;
   background-image: radial-gradient(ellipse at center, #141414, #030303 70%);
-  font-family: "Exo 2", "Inter", sans-serif;
+  font-family: "Rajdhani", sans-serif;
 }
 
 [data-supplement="infames-condutores"] .font-black,
@@ -95,7 +134,7 @@
   color: #fff1f2;
   background-color: #18090d;
   background-image: radial-gradient(ellipse at 50% 0%, #40151f, #18090d 65%);
-  font-family: "Falling Sky", "Lovelo", "Exo 2", sans-serif;
+  font-family: "IM Fell English", Georgia, serif;
 }
 
 .supplement-ad-astra {
@@ -107,7 +146,11 @@
     radial-gradient(1px 1px at 78% 24%, #dff7ff 55%, transparent),
     radial-gradient(1px 1px at 92% 78%, #7dd3fc 55%, transparent),
     radial-gradient(ellipse at top, #0b1c34, #020817 68%);
-  font-family: "Orbitron", "Exo 2", sans-serif;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+[data-supplement="modulo-basico"] {
+  font-family: "Alegreya", Georgia, serif;
 }
 
 .supplement-sheet.supplement-quatro-elementos {
@@ -131,17 +174,17 @@
 }
 
 [data-supplement="quatro-elementos"] {
-  font-family: "Macondo", "Herculanum Roman", "Papyrus", fantasy;
+  font-family: "Macondo", serif;
 }
 
 [data-supplement="infames-condutores"] {
-  font-family: "Exo 2", "Inter", sans-serif;
+  font-family: "Rajdhani", sans-serif;
 }
 
 [data-supplement="fading-humans"] {
-  font-family: "Falling Sky", "Lovelo", "Exo 2", sans-serif;
+  font-family: "IM Fell English", Georgia, serif;
 }
 
 [data-supplement="ad-astra"] {
-  font-family: "Orbitron", "Exo 2", sans-serif;
+  font-family: "Space Grotesk", sans-serif;
 }
