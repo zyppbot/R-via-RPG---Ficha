@@ -1,20 +1,28 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Rúvia RPG • Fichas
 
-# Run and deploy your AI Studio app
+Gerenciador de fichas de personagem e nave para o sistema Rúvia RPG. Fichas e pastas ficam salvas localmente no navegador. O compartilhamento simultâneo por link está em desenvolvimento.
 
-This contains everything you need to run your app locally.
+## Executar localmente
 
-View your app in AI Studio: https://ai.studio/apps/2352fa9d-3440-46b3-985c-fa22921ada0e
+Requer Node.js.
 
-## Run Locally
+```sh
+npm install
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+## Publicar no GitHub Pages
 
+O workflow [Deploy to GitHub Pages](.github/workflows/deploy.yml) publica o site após alterações na branch `main`. Antes do primeiro deploy:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. Em **Settings → Pages**, escolha **GitHub Actions** como origem de publicação.
+2. Integre as alterações à branch `main`. O workflow executa a checagem de tipos e a compilação, e publica o site se ambas passarem.
+
+Como o repositório usa GitHub Pages de projeto, o endereço publicado fica sob `https://zyppbot.github.io/R-via-RPG---Ficha/`.
+
+## Verificações
+
+```sh
+npm run lint
+npm run build
+```
