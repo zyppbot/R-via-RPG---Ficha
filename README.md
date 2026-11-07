@@ -1,6 +1,6 @@
 # Rúvia RPG • Fichas
 
-Gerenciador de fichas de personagem e nave para o sistema Rúvia RPG. Fichas e pastas ficam salvas localmente no navegador. O compartilhamento simultâneo por link está em desenvolvimento.
+Gerenciador de fichas de personagem e nave para o sistema Rúvia RPG. Fichas e pastas ficam salvas localmente no navegador. Cada suplemento usa tipografia temática incluída no site para manter a aparência consistente entre dispositivos. O compartilhamento simultâneo por link está em desenvolvimento.
 
 ## Executar localmente
 

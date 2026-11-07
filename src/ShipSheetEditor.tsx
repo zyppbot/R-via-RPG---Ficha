@@ -87,7 +87,7 @@ export default function ShipSheetEditor({ name, data, onNameChange, onChange, on
       : 'text-emerald-300';
 
   return (
-    <main className="min-h-screen bg-[#020b17] px-4 py-6 text-slate-100 sm:px-8">
+    <main data-supplement="ad-astra" className="min-h-screen bg-[#020b17] px-4 py-6 text-slate-100 sm:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-sky-300/30 pb-5">
           <div className="flex items-center gap-3">
