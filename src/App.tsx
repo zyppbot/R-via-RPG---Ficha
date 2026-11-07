@@ -40,31 +40,128 @@ import {
   User,
   HeartOff,
   ZapOff,
-  Star
+  Star,
+  Rocket,
+  Folder,
+  FolderPlus,
+  X
 } from 'lucide-react';
+import ShipSheetEditor, { createShipData } from './ShipSheetEditor';
+import SupplementPanels from './SupplementPanels';
 import { 
   CharacterSheet, 
   Item, 
   Skill, 
   ClassAbility, 
-  CharacterAttributes 
+  CharacterAttributes,
+  CharacterSupplement,
+  SupplementData
 } from './types';
 import { 
   INITIAL_CHARACTER, 
   SPECIALIZATIONS_LIST, 
   DOMAINS_LIST, 
-  ELEMENTS_LIST 
+  ELEMENTS_LIST,
+  SUPPLEMENT_OPTIONS,
+  FOUR_ELEMENTS_ORIGINS,
+  INFAMES_ORIGINS,
+  INFAMES_SPECIALIZATIONS,
+  AD_ASTRA_SPECIALIZATIONS,
+  AD_ASTRA_OFFICES,
+  AD_ASTRA_SPECIES
 } from './constants';
-import { ORIGINS, Origin } from './originData';
+import { ORIGINS, FOUR_ELEMENTS_ORIGINS as FOUR_ELEMENT_ORIGIN_DATA, INFAMES_ORIGINS as INFAMES_ORIGIN_DATA } from './originData';
+
+interface CharacterFolder {
+  id: string;
+  name: string;
+}
+
+type CharacterLevel = number | 'none';
+
+function getCharacterLevel(character: CharacterSheet): CharacterLevel {
+  if (character.supplement === 'quatro-elementos' || character.supplement === 'fading-humans') return 'none';
+  if (character.kind === 'nave') return character.shipData?.level || 1;
+  if (character.supplement === 'ad-astra') return Math.max(1, Math.min(20, character.level || 1));
+  return Math.max(1, Object.values(character.specializations || {}).reduce((sum, level) => sum + (level || 0), 0));
+}
+
+const SUPPLEMENT_THEMES = {
+  'modulo-basico': {
+    accent: 'text-ruvia-accent',
+    accentSoft: 'text-ruvia-accent/70',
+    button: 'bg-ruvia-accent text-ruvia-bg',
+    badge: 'bg-ruvia-accent/10 border-ruvia-accent/20 text-ruvia-accent',
+    panel: 'bg-ruvia-panel',
+    card: 'bg-ruvia-card border-ruvia-border',
+  },
+  'quatro-elementos': {
+    accent: 'text-[#8f6b45]',
+    accentSoft: 'text-[#8f6b45]/70',
+    button: 'bg-[#8f6b45] text-[#f6ecd8]',
+    badge: 'bg-[#f3e4b7]/20 border-[#8f6b45]/40 text-[#6b4b2d]',
+    panel: 'bg-[#f3e7c9]',
+    card: 'bg-[#f4e6bf] border-[#8f6b45]',
+  },
+  'infames-condutores': {
+    accent: 'text-[#f5f5f5]',
+    accentSoft: 'text-[#d1d5db]',
+    button: 'bg-[#111827] text-[#f3f4f6]',
+    badge: 'bg-[#111827]/70 border-[#374151] text-[#f3f4f6]',
+    panel: 'bg-[#0f172a]',
+    card: 'bg-[#111827] border-[#374151]',
+  },
+  'fading-humans': {
+    accent: 'text-[#f9a8d4]',
+    accentSoft: 'text-[#fbcfe8]',
+    button: 'bg-[#7f1d1d] text-[#fff1f2]',
+    badge: 'bg-[#7f1d1d]/20 border-[#f9a8d4]/40 text-[#f9a8d4]',
+    panel: 'bg-[#1f0d12]',
+    card: 'bg-[#2a1017] border-[#7f1d1d]',
+  },
+  'ad-astra': {
+    accent: 'text-[#7dd3fc]',
+    accentSoft: 'text-[#bae6fd]',
+    button: 'bg-[#082f49] text-[#e0f2fe]',
+    badge: 'bg-[#082f49]/60 border-[#7dd3fc]/30 text-[#7dd3fc]',
+    panel: 'bg-[#020b17]',
+    card: 'bg-[#0b1323] border-[#082f49]',
+  },
+  nave: {
+    accent: 'text-[#7dd3fc]',
+    accentSoft: 'text-[#bae6fd]',
+    button: 'bg-[#082f49] text-[#e0f2fe]',
+    badge: 'bg-[#082f49]/60 border-[#7dd3fc]/30 text-[#7dd3fc]',
+    panel: 'bg-[#020b17]',
+    card: 'bg-[#0b1323] border-[#082f49]',
+  },
+} as const;
+
+const SUPPLEMENT_CARD_LABELS: Record<CharacterSupplement, string> = {
+  'modulo-basico': 'Ficha do Módulo Básico',
+  'quatro-elementos': 'Ficha dos 4 Elementos',
+  'infames-condutores': 'Ficha de Infames Condutores',
+  'fading-humans': 'Ficha de Fading Humans',
+  'ad-astra': 'Ficha de Ad Astra',
+  nave: 'Ficha de Nave • Ad Astra',
+};
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [characters, setCharacters] = useState<CharacterSheet[]>([]);
+  const [folders, setFolders] = useState<CharacterFolder[]>([]);
+  const [activeFolderFilter, setActiveFolderFilter] = useState('all');
+  const [newFolderName, setNewFolderName] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'sheet'>('list');
+  const [newCharacterMenuOpen, setNewCharacterMenuOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<CharacterSheet[] | null>(null);
+  const [shareNotice, setShareNotice] = useState(false);
+  const [selectedSupplements, setSelectedSupplements] = useState<CharacterSupplement[]>([]);
+  const [selectedLevels, setSelectedLevels] = useState<CharacterLevel[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load from localStorage on mount
+  // Load private sheets and folders from this browser.
   useEffect(() => {
     const saved = localStorage.getItem('ruvia_characters');
     if (saved) {
@@ -87,29 +184,65 @@ export default function App() {
         setCharacters([]);
       }
     }
+    const savedFolders = localStorage.getItem('ruvia_folders');
+    if (savedFolders) {
+      try {
+        setFolders(JSON.parse(savedFolders) as CharacterFolder[]);
+      } catch (error) {
+        console.error('Erro ao carregar pastas locais', error);
+        setFolders([]);
+      }
+    }
     setLoading(false);
   }, []);
 
-  // Save to localStorage whenever characters change
   useEffect(() => {
     if (!loading) {
       localStorage.setItem('ruvia_characters', JSON.stringify(characters));
     }
   }, [characters, loading]);
 
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem('ruvia_folders', JSON.stringify(folders));
+    }
+  }, [folders, loading]);
+
   const activeCharacter = useMemo(() => {
     return characters.find(c => c.id === activeId) || characters[0] || INITIAL_CHARACTER;
   }, [characters, activeId]);
 
+  const activeSupplementTheme = SUPPLEMENT_THEMES[(activeCharacter?.supplement || 'modulo-basico') as keyof typeof SUPPLEMENT_THEMES];
+  const isNoLevelSupplement = activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'fading-humans';
+  const isAdAstra = activeCharacter.supplement === 'ad-astra';
+  const isFadingHumans = activeCharacter.supplement === 'fading-humans';
+  const characterOriginOptions = activeCharacter.supplement === 'quatro-elementos'
+    ? FOUR_ELEMENTS_ORIGINS
+    : activeCharacter.supplement === 'infames-condutores'
+      ? INFAMES_ORIGINS
+      : ORIGINS.map(origin => origin.name);
+  const characterSpecializations = activeCharacter.supplement === 'infames-condutores'
+    ? INFAMES_SPECIALIZATIONS
+    : SPECIALIZATIONS_LIST;
+  const activeOriginDetails = activeCharacter.supplement === 'quatro-elementos'
+    ? FOUR_ELEMENT_ORIGIN_DATA.find(origin => origin.name === activeCharacter.origin)
+    : activeCharacter.supplement === 'infames-condutores'
+      ? INFAMES_ORIGIN_DATA.find(origin => origin.name === activeCharacter.origin)
+      : ORIGINS.find(origin => origin.name === activeCharacter.origin);
+
   const totalLevel = useMemo(() => {
+    if (activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'fading-humans') return 1;
+    if (activeCharacter.supplement === 'ad-astra') {
+      return Math.max(1, Math.min(20, activeCharacter.level || 1));
+    }
     if (!activeCharacter || !activeCharacter.specializations) return 1;
     const sum = (Object.values(activeCharacter.specializations) as number[]).reduce((a, b) => a + (b || 0), 0);
     return sum || 1;
-  }, [activeCharacter?.specializations]);
+  }, [activeCharacter.supplement, activeCharacter.level, activeCharacter.specializations]);
 
   const updateCharacter = (updates: Partial<CharacterSheet>) => {
     if (!activeCharacter || activeCharacter === INITIAL_CHARACTER) return;
-    
+
     setCharacters(prev => prev.map(c => 
       c.id === activeCharacter.id 
         ? { ...c, ...updates, updatedAt: new Date().toISOString() } 
@@ -117,14 +250,77 @@ export default function App() {
     ));
   };
 
-  const exportCharacters = () => {
-    const dataStr = JSON.stringify(characters, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = 'ruvia_personagens_backup.json';
+  const exportCharacters = (list: CharacterSheet[] = characters) => {
+    const backupCharacters = list.map(({ folderId: _folderId, ...character }) => character);
+    const dataStr = JSON.stringify(backupCharacters, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const safeCharacterName = (list[0]?.name || 'backup').toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'backup';
+    const exportFileDefaultName = list.length === 1
+      ? `ruvia_personagem_${safeCharacterName}.json`
+      : 'ruvia_personagens_backup.json';
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+  };
+
+  const exportCurrentCharacter = () => {
+    if (!activeCharacter || activeCharacter === INITIAL_CHARACTER) return;
+    exportCharacters([activeCharacter]);
+  };
+
+  const normalizeImportedCharacters = (input: unknown): CharacterSheet[] => {
+    const candidateBundle = typeof input === 'object' && input !== null && 'characters' in input
+      ? (input as { characters?: unknown[] }).characters
+      : input;
+    const maybeArray = Array.isArray(candidateBundle) ? candidateBundle : [candidateBundle];
+    const results: CharacterSheet[] = [];
+    for (const item of maybeArray) {
+      if (!item || typeof item !== 'object') continue;
+      const candidate = item as Partial<CharacterSheet>;
+      const defaultShipData = createShipData();
+      const importedShipData = candidate.shipData;
+      const normalized: CharacterSheet = {
+        ...INITIAL_CHARACTER,
+        ...candidate,
+        id: candidate.id || Math.random().toString(36).slice(2, 10),
+        name: candidate.name || 'Novo Herói',
+        title: candidate.title || 'Aventureiro Iniciante',
+        attributes: { ...INITIAL_CHARACTER.attributes, ...(candidate.attributes || {}) },
+        stats: {
+          pv: { ...INITIAL_CHARACTER.stats.pv, ...(candidate.stats?.pv || {}) },
+          pm: { ...INITIAL_CHARACTER.stats.pm, ...(candidate.stats?.pm || {}) },
+        },
+        specializations: { ...(candidate.specializations || {}) },
+        skillTraining: { ...(candidate.skillTraining || {}) },
+        unlockedSkills: candidate.unlockedSkills || [],
+        inventory: candidate.inventory || [],
+        abilities: candidate.abilities || [],
+        quickNote: { ...INITIAL_CHARACTER.quickNote, ...(candidate.quickNote || {}) },
+        supplement: candidate.supplement || 'modulo-basico',
+        kind: candidate.kind || 'personagem',
+        shipData: candidate.kind === 'nave'
+          ? {
+              ...defaultShipData,
+              ...(importedShipData || {}),
+              attributes: { ...defaultShipData.attributes, ...(importedShipData?.attributes || {}) },
+              resources: {
+                hull: { ...defaultShipData.resources.hull, ...(importedShipData?.resources?.hull || {}) },
+                shields: { ...defaultShipData.resources.shields, ...(importedShipData?.resources?.shields || {}) },
+                energy: { ...defaultShipData.resources.energy, ...(importedShipData?.resources?.energy || {}) },
+                fuel: { ...defaultShipData.resources.fuel, ...(importedShipData?.resources?.fuel || {}) },
+              },
+              activeDamage: importedShipData?.activeDamage || [],
+              crew: importedShipData?.crew || [],
+              systems: importedShipData?.systems || [],
+              modules: importedShipData?.modules || [],
+              inventory: importedShipData?.inventory || [],
+            }
+          : candidate.shipData,
+      };
+      results.push(normalized);
+    }
+    return results;
   };
 
   const importCharacters = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,13 +330,16 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const imported = JSON.parse(event.target?.result as string) as CharacterSheet[];
-        if (Array.isArray(imported)) {
-          setCharacters(imported);
-          alert(`${imported.length} personagens carregados com sucesso!`);
+        const parsed = JSON.parse(event.target?.result as string);
+        const imported = normalizeImportedCharacters(parsed);
+        if (imported.length === 0) {
+          alert('Arquivo carregado sem fichas válidas.');
+          return;
         }
+
+        setPendingImport(imported);
       } catch (err) {
-        alert("Erro ao importar arquivo. Verifique se o formato está correto.");
+        alert('Erro ao importar arquivo. Verifique se o formato está correto.');
         console.error(err);
       }
     };
@@ -149,13 +348,28 @@ export default function App() {
   };
 
   const updateAttr = (key: keyof CharacterAttributes, val: number) => {
+    let boundedValue = activeCharacter.supplement === 'ad-astra'
+      ? Math.max(0, Math.min(val, totalLevel + 3))
+      : Math.max(0, val);
+    const updates: Partial<CharacterSheet> = {};
+    if (activeCharacter.supplement === 'fading-humans') {
+      const currentValue = activeCharacter.attributes[key];
+      const available = activeCharacter.supplementData?.attributePoints ?? 8;
+      const delta = boundedValue - currentValue;
+      if (delta > available) boundedValue = currentValue + available;
+      updates.supplementData = {
+        ...(activeCharacter.supplementData || {}),
+        attributePoints: Math.min(8, Math.max(0, available - (boundedValue - currentValue))),
+      };
+    }
     updateCharacter({
-      attributes: { ...activeCharacter.attributes, [key]: val }
+      ...updates,
+      attributes: { ...activeCharacter.attributes, [key]: boundedValue },
     });
   };
 
   const updateSkillTraining = (skillName: string, val: number) => {
-    const maxAllowed = totalLevel + 2;
+    const maxAllowed = activeCharacter.supplement === 'ad-astra' ? totalLevel + 1 : activeCharacter.supplement === 'fading-humans' ? 12 : totalLevel + 2;
     const clampedVal = Math.max(0, Math.min(val, maxAllowed));
     updateCharacter({
       skillTraining: { ...activeCharacter.skillTraining, [skillName]: clampedVal }
@@ -165,7 +379,7 @@ export default function App() {
   // Clamos and caps existing skill training points: max = totalLevel + 2
   useEffect(() => {
     if (!activeCharacter || !activeCharacter.skillTraining || !activeCharacter.id) return;
-    const maxAllowed = totalLevel + 2;
+    const maxAllowed = activeCharacter.supplement === 'ad-astra' ? totalLevel + 1 : activeCharacter.supplement === 'fading-humans' ? 12 : totalLevel + 2;
     let modified = false;
     const updatedTraining = { ...activeCharacter.skillTraining };
     
@@ -183,7 +397,21 @@ export default function App() {
     if (modified) {
       updateCharacter({ skillTraining: updatedTraining });
     }
-  }, [activeCharacter?.id, activeCharacter?.skillTraining, totalLevel]);
+  }, [activeCharacter?.id, activeCharacter?.skillTraining, activeCharacter?.supplement, totalLevel]);
+
+  useEffect(() => {
+    if (activeCharacter.supplement !== 'ad-astra' || !activeCharacter.attributes) return;
+    const cap = totalLevel + 3;
+    const corrected = { ...activeCharacter.attributes };
+    let modified = false;
+    (Object.keys(corrected) as (keyof CharacterAttributes)[]).forEach(key => {
+      if (corrected[key] > cap) {
+        corrected[key] = cap;
+        modified = true;
+      }
+    });
+    if (modified) updateCharacter({ attributes: corrected });
+  }, [activeCharacter.id, activeCharacter.supplement, activeCharacter.attributes, totalLevel]);
 
   const updateStatMax = (key: 'pv' | 'pm', newMax: number) => {
     const stat = activeCharacter.stats[key];
@@ -200,7 +428,17 @@ export default function App() {
   };
 
   const updateStatCurrent = (key: 'pv' | 'pm', val: number) => {
+    const change = activeCharacter.supplement === 'infames-condutores'
+      ? {
+          id: Math.random().toString(36).slice(2, 10),
+          key,
+          before: activeCharacter.stats[key].current,
+          after: val,
+          changedAt: new Date().toISOString(),
+        }
+      : undefined;
     updateCharacter({
+      ...(change ? { statChangeLog: [...(activeCharacter.statChangeLog || []), change].slice(-20) } : {}),
       stats: {
         ...activeCharacter.stats,
         [key]: { ...activeCharacter.stats[key], current: val }
@@ -208,22 +446,38 @@ export default function App() {
     });
   };
 
+  const undoStatChange = (changeId: string) => {
+    const changes = activeCharacter.statChangeLog || [];
+    const change = changes.find(entry => entry.id === changeId);
+    if (!change) return;
+    updateCharacter({
+      stats: { ...activeCharacter.stats, [change.key]: { ...activeCharacter.stats[change.key], current: change.before } },
+      statChangeLog: changes.filter(entry => entry.id !== changeId),
+    });
+  };
+
   const effectiveAttributes = useMemo(() => {
     if (!activeCharacter || !activeCharacter.attributes) return INITIAL_CHARACTER.attributes;
-    const origin = ORIGINS.find(o => o.name === activeCharacter.origin);
+    const origin = activeOriginDetails;
     const bonuses = origin?.attributeBonuses || {};
+    const frame = activeCharacter.supplementData?.physicalFrame;
+    const frameBonuses = frame === 'Robusto'
+      ? { forca: 1, vigor: 1 }
+      : frame === 'Mirrado'
+        ? { destreza: 2 }
+        : {};
     
     return {
-      forca: (activeCharacter.attributes.forca || 0) + (bonuses.forca || 0) + (bonuses.all || 0),
-      destreza: (activeCharacter.attributes.destreza || 0) + (bonuses.destreza || 0) + (bonuses.all || 0),
-      vigor: (activeCharacter.attributes.vigor || 0) + (bonuses.vigor || 0) + (bonuses.all || 0),
+      forca: (activeCharacter.attributes.forca || 0) + (bonuses.forca || 0) + (bonuses.all || 0) + (frameBonuses.forca || 0),
+      destreza: (activeCharacter.attributes.destreza || 0) + (bonuses.destreza || 0) + (bonuses.all || 0) + (frameBonuses.destreza || 0),
+      vigor: (activeCharacter.attributes.vigor || 0) + (bonuses.vigor || 0) + (bonuses.all || 0) + (frameBonuses.vigor || 0),
       intelecto: (activeCharacter.attributes.intelecto || 0) + (bonuses.intelecto || 0) + (bonuses.all || 0),
       expressao: (activeCharacter.attributes.expressao || 0) + (bonuses.expressao || 0) + (bonuses.all || 0),
       carisma: (activeCharacter.attributes.carisma || 0) + (bonuses.carisma || 0) + (bonuses.all || 0),
     };
-  }, [activeCharacter.attributes, activeCharacter.origin]);
+  }, [activeCharacter.attributes, activeOriginDetails, activeCharacter.supplementData?.physicalFrame]);
 
-  const calculateSkills = (attrs: CharacterAttributes, lvl: number, training: { [name: string]: number }): Skill[] => {
+  const calculateSkills = (attrs: CharacterAttributes, lvl: number, training: { [name: string]: number }, supplement?: CharacterSupplement): Skill[] => {
     const { forca: F, destreza: D, vigor: V, intelecto: I, expressao: E, carisma: C } = attrs;
     const floor = Math.floor;
 
@@ -276,30 +530,84 @@ export default function App() {
       { name: 'Forja', bonus: floor((3 * F + D + I) / 5 + 2 + (lvl / 5)), isLocked: true },
     ].map(s => ({ ...s, bonus: s.bonus + (training[s.name] || 0) }));
 
-    return [...basicSkills, ...lockedSkills];
+    let skills = [...basicSkills, ...lockedSkills];
+
+    if (supplement === 'quatro-elementos' || supplement === 'fading-humans') {
+      skills = skills.filter(skill => !skill.isLocked || skill.name === 'Luta')
+        .map(skill => skill.name === 'Luta' ? { ...skill, isLocked: undefined } : skill);
+    } else if (supplement === 'infames-condutores') {
+      skills = skills.filter(skill => !skill.isLocked || skill.name === 'Luta' || skill.name === 'Prestidigitação')
+        .map(skill => {
+          if (skill.name === 'Luta' || skill.name === 'Prestidigitação') return { ...skill, isLocked: undefined };
+          if (skill.name === 'Cavalgar') return {
+            ...skill,
+            name: 'Pilotagem',
+            bonus: floor((3 * D + 2 * I + E) / 6) + (training.Pilotagem || 0),
+          };
+          return skill;
+        });
+    } else if (supplement === 'ad-astra') {
+      const removedArtSkills = new Set(['Culinária', 'Composição', 'Joalheria', 'Dança', 'Artesanato', 'Pintura', 'Costura', 'Escrita', 'Forja']);
+      skills = skills.filter(skill => !removedArtSkills.has(skill.name))
+        .map(skill => {
+          if (skill.name === 'Arcanismo') return { ...skill, name: 'Sintonia', bonus: floor(((4 * E) + (3 * V) + (3 * I) + (2 * C)) / 12) + (training.Sintonia || 0) };
+          if (skill.name === 'Cavalgar') return { ...skill, name: 'Pilotagem', bonus: floor((3 * D + 2 * I + E) / 6) + (training.Pilotagem || 0) };
+          if (skill.name === 'Nobreza') return { ...skill, name: 'Política' };
+          if (skill.name === 'Religião') return { ...skill, name: 'Teologia' };
+          if (skill.name === 'Luta') return { ...skill, isLocked: undefined, bonus: floor((3 * F + 2 * D + I + E) / 7) - 2 + (training.Luta || 0) };
+          if (skill.name === 'Prestidigitação') return { ...skill, isLocked: undefined, bonus: floor((4 * D + I + E) / 6) - 2 + (training.Prestidigitação || 0) };
+          return skill;
+        });
+      skills.push(
+        { name: 'Engenharia', bonus: floor((4 * I + 2 * D) / 6) + (training.Engenharia || 0) },
+        { name: 'Computação', bonus: floor((4 * I + D + E) / 6) + (training.Computação || 0) },
+        { name: 'Xenologia', bonus: floor((3 * E + 2 * I + C) / 6) + (training.Xenologia || 0) },
+        { name: 'Navegação', bonus: floor((3 * I + 2 * E + D) / 6) + (training.Navegação || 0) },
+      );
+    }
+
+    return skills;
   };
 
-  const currentSkills = useMemo(() => 
-    calculateSkills(effectiveAttributes, totalLevel, activeCharacter.skillTraining), 
-    [effectiveAttributes, totalLevel, activeCharacter.skillTraining]
-  );
+  const currentSkills = useMemo(() => {
+    const skills = calculateSkills(effectiveAttributes, totalLevel, activeCharacter.skillTraining, activeCharacter.supplement);
+    if (activeCharacter.supplement === 'fading-humans' && activeCharacter.supplementData?.physicalFrame === 'Mirrado') {
+      return skills.map(skill => ['Acrobacia', 'Furtividade', 'Iniciativa'].includes(skill.name) ? { ...skill, bonus: skill.bonus + 1 } : skill);
+    }
+    return skills;
+  }, [effectiveAttributes, totalLevel, activeCharacter.skillTraining, activeCharacter.supplement, activeCharacter.supplementData?.physicalFrame]);
 
   const statsWithOrigin = useMemo(() => {
     if (!activeCharacter || !activeCharacter.stats) return INITIAL_CHARACTER.stats;
-    const origin = ORIGINS.find(o => o.name === activeCharacter.origin);
+    const origin = activeOriginDetails;
     const pvPerLvl = origin?.pvPerLevel || 0;
     const pmPerLvl = origin?.pmPerLevel || 0;
     
     const fortitude = currentSkills.find(s => s.name === 'Fortitude')?.bonus || 0;
-    const arcanismo = currentSkills.find(s => s.name === 'Arcanismo')?.bonus || 0;
+    const arcanismo = currentSkills.find(s => s.name === (isAdAstra ? 'Sintonia' : 'Arcanismo'))?.bonus || 0;
 
     let maxPV = 10 + (pvPerLvl * totalLevel) + (6 * fortitude) + (activeCharacter.pvAdjustment || 0);
     let maxPM = 5 + (pmPerLvl * totalLevel) + (2 * arcanismo) + (2 * fortitude) + (activeCharacter.pmAdjustment || 0);
+    if (activeCharacter.supplement === 'quatro-elementos') {
+      maxPV = (origin?.basePV ?? 10) + (activeCharacter.pvAdjustment || 0);
+      maxPM = (origin?.basePM ?? 5) + (activeCharacter.pmAdjustment || 0);
+    } else if (activeCharacter.supplement === 'fading-humans') {
+      const robustBonus = activeCharacter.supplementData?.physicalFrame === 'Robusto';
+      const slightPenalty = activeCharacter.supplementData?.physicalFrame === 'Mirrado';
+      maxPV = 10 + (robustBonus ? 3 : 0) - (slightPenalty ? 1 : 0) + (activeCharacter.pvAdjustment || 0);
+      maxPM = 8 + (robustBonus ? 1 : 0) + (activeCharacter.pmAdjustment || 0);
+    } else if (activeCharacter.supplement === 'infames-condutores') {
+      maxPV = 10 + (pvPerLvl * totalLevel) + (activeCharacter.pvAdjustment || 0);
+      maxPM = 5 + (pmPerLvl * totalLevel) + (activeCharacter.pmAdjustment || 0);
+    } else if (isAdAstra) {
+      maxPV = 10 + (activeCharacter.pvAdjustment || 0);
+      maxPM = 5 + (activeCharacter.pmAdjustment || 0);
+    }
 
-    if (activeCharacter.pvReduced) {
+    if (activeCharacter.supplement === 'modulo-basico' && activeCharacter.pvReduced) {
       maxPV -= 3 * totalLevel;
     }
-    if (activeCharacter.pmReduced) {
+    if (activeCharacter.supplement === 'modulo-basico' && activeCharacter.pmReduced) {
       maxPM -= 3 * totalLevel;
     }
 
@@ -313,17 +621,25 @@ export default function App() {
         max: maxPM 
       }
     };
-  }, [activeCharacter.stats, activeCharacter.origin, totalLevel, currentSkills, activeCharacter.pvAdjustment, activeCharacter.pmAdjustment, activeCharacter.pvReduced, activeCharacter.pmReduced]);
+  }, [activeCharacter.stats, activeCharacter.origin, activeCharacter.supplement, activeOriginDetails, activeCharacter.supplementData?.physicalFrame, totalLevel, currentSkills, activeCharacter.pvAdjustment, activeCharacter.pmAdjustment, activeCharacter.pvReduced, activeCharacter.pmReduced, isAdAstra]);
 
   const trainingPoints = useMemo(() => {
     if (!activeCharacter) return 0;
-    const origin = ORIGINS.find(o => o.name === activeCharacter.origin);
+    const spent = (Object.values(activeCharacter.skillTraining || {}) as number[]).reduce((a, b) => a + (b || 0), 0);
+    if (activeCharacter.supplement === 'fading-humans') return 12 - spent;
+    if (activeCharacter.supplement === 'ad-astra') return 10 + (totalLevel - 1) + (Math.floor(totalLevel / 5) * 3) - spent;
+    const origin = activeOriginDetails;
+    if (activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'infames-condutores') {
+      return (origin?.trainingPoints || 0) + (activeCharacter.trainingPointsAdjustment || 0) - spent;
+    }
+    if (activeCharacter.supplement === 'fading-humans') {
+      return 12 + (activeCharacter.supplementData?.physicalFrame === 'Padrão' ? 2 : 0) - spent;
+    }
     const base = (origin?.trainingPoints || 0) + 2 + (effectiveAttributes.intelecto || 0);
     const levelUpPoints = (totalLevel - 1) + Math.floor(totalLevel / 5) * 2;
     const totalTrainingPoints = base + levelUpPoints;
-    const used = (Object.values(activeCharacter.skillTraining || {}) as number[]).reduce((a, b) => a + (b || 0), 0);
-    return totalTrainingPoints + (activeCharacter.trainingPointsAdjustment || 0) - used;
-  }, [activeCharacter.origin, activeCharacter.trainingPointsAdjustment, activeCharacter.skillTraining, effectiveAttributes.intelecto, totalLevel]);
+    return totalTrainingPoints + (activeCharacter.trainingPointsAdjustment || 0) - spent;
+  }, [activeCharacter.origin, activeCharacter.supplement, activeOriginDetails, activeCharacter.supplementData?.physicalFrame, activeCharacter.trainingPointsAdjustment, activeCharacter.skillTraining, effectiveAttributes.intelecto, totalLevel]);
 
   const toggleSkillUnlock = (skillName: string) => {
     const isUnlocked = activeCharacter.unlockedSkills.includes(skillName);
@@ -361,8 +677,11 @@ export default function App() {
   const defenseValue = useMemo(() => {
     const { forca: F, destreza: D, vigor: V } = effectiveAttributes;
     const lvl = totalLevel;
-    return (8 + D + Math.ceil((lvl + (2 * V) + F) / 3)) + (activeCharacter.defenseAdjustment || 0);
-  }, [effectiveAttributes, totalLevel, activeCharacter.defenseAdjustment]);
+    const frameAdjustment = activeCharacter.supplement === 'fading-humans'
+      ? activeCharacter.supplementData?.physicalFrame === 'Robusto' ? 1 : activeCharacter.supplementData?.physicalFrame === 'Mirrado' ? -1 : 0
+      : 0;
+    return (8 + D + Math.ceil((lvl + (2 * V) + F) / 3)) + (activeCharacter.defenseAdjustment || 0) + frameAdjustment;
+  }, [effectiveAttributes, totalLevel, activeCharacter.defenseAdjustment, activeCharacter.supplement, activeCharacter.supplementData?.physicalFrame]);
 
   const [prevMaxStats, setPrevMaxStats] = useState<{ [charId: string]: { pv: number, pm: number } }>({});
 
@@ -393,33 +712,215 @@ export default function App() {
     }
   }, [statsWithOrigin.pv.max, statsWithOrigin.pm.max, activeCharacter.id]);
 
-  const addNewCharacter = () => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const initialSpecializations = { 'Lutador': 1 };
-    
+  const createCharacterFromSupplement = (supplement: CharacterSupplement, customName?: string) => {
+    const id = Math.random().toString(36).slice(2, 10);
+    const isShip = supplement === 'nave';
+    const initialSpecializations = isShip || supplement === 'quatro-elementos' || supplement === 'fading-humans' || supplement === 'ad-astra'
+      ? {}
+      : { 'Lutador': 1 };
+
     const newChar: CharacterSheet = {
       ...INITIAL_CHARACTER,
       id,
-      name: 'Novo Herói',
+      supplement,
+      kind: isShip ? 'nave' : 'personagem',
+      shipData: isShip ? createShipData() : undefined,
+      name: customName || (isShip ? 'Nova Nave' : 'Novo Herói'),
+      title: isShip ? 'Nave de Patrulha' : 'Aventureiro Iniciante',
       specializations: initialSpecializations,
       stats: {
-        pv: { current: 10, max: 10 },
-        pm: { current: 5, max: 5 },
+        pv: { current: isShip ? 0 : 10, max: isShip ? 0 : 10 },
+        pm: { current: isShip ? 0 : supplement === 'fading-humans' ? 8 : 5, max: isShip ? 0 : supplement === 'fading-humans' ? 8 : 5 },
       },
-      level: 1,
+      level: isShip ? 1 : 1,
+      supplementData: supplement === 'fading-humans'
+        ? { characterPoints: 8, attributePoints: 8, physicalFrame: 'Padrão', masteries: {} }
+        : supplement === 'infames-condutores'
+          ? { karmicRed: 0, karmicBlue: 0, conductionTraits: [] }
+          : supplement === 'quatro-elementos'
+            ? { subfolds: [], elementRank: 1 }
+            : supplement === 'ad-astra'
+              ? { matrixChoice: 'Sem Matriz', protocols: [], mainLoadout: [], secondaryLoadout: [], snippets: [] }
+              : undefined,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      origin: isShip ? '' : INITIAL_CHARACTER.origin,
     };
-    
+
     setCharacters(prev => [...prev, newChar]);
     setActiveId(id);
     setView('sheet');
   };
 
+  const applyImport = (mode: 'merge' | 'replace') => {
+    if (!pendingImport) return;
+    setCharacters(prev => {
+      if (mode === 'replace') return pendingImport;
+      const usedIds = new Set(prev.map(character => character.id));
+      const additions = pendingImport.map(character => {
+        if (!usedIds.has(character.id)) {
+          usedIds.add(character.id);
+          return character;
+        }
+        const id = Math.random().toString(36).slice(2, 10);
+        usedIds.add(id);
+        return { ...character, id };
+      });
+      return [...prev, ...additions];
+    });
+    setPendingImport(null);
+  };
+
+  const updateShipData = (shipData: NonNullable<CharacterSheet['shipData']>) => {
+    updateCharacter({ shipData });
+  };
+
+  const updateSupplementData = (updates: Partial<SupplementData>) => {
+    updateCharacter({ supplementData: { ...(activeCharacter.supplementData || {}), ...updates } });
+  };
+
+  const spendCharacterPoint = (target: string) => {
+    const data = activeCharacter.supplementData || {};
+    const points = data.characterPoints ?? 8;
+    if (points <= 0) return;
+    const nextData = { ...data, characterPoints: points - 1 };
+    if (target === 'Vitalidade') {
+      const nextMaximum = Math.ceil(statsWithOrigin.pv.max * 1.2);
+      updateCharacter({ pvAdjustment: (activeCharacter.pvAdjustment || 0) + nextMaximum - statsWithOrigin.pv.max, supplementData: nextData });
+      return;
+    }
+    if (target === 'Síntese') {
+      const nextMaximum = Math.floor(statsWithOrigin.pm.max * 1.2);
+      updateCharacter({ pmAdjustment: (activeCharacter.pmAdjustment || 0) + nextMaximum - statsWithOrigin.pm.max, supplementData: nextData });
+      return;
+    }
+    if (target.startsWith('Atributo: ')) {
+      const key = target.slice('Atributo: '.length) as keyof CharacterAttributes;
+      if (activeCharacter.attributes[key] >= 8) {
+        alert('Esse atributo já atingiu o limite de 8 pontos para Pontos de Personagem.');
+        return;
+      }
+      updateCharacter({
+        attributes: { ...activeCharacter.attributes, [key]: activeCharacter.attributes[key] + 1 },
+        supplementData: { ...nextData, attributePoints: Math.max(0, (data.attributePoints ?? 8) - 1) },
+      });
+      return;
+    }
+    if (target.startsWith('Perícia: ')) {
+      const skillName = target.slice('Perícia: '.length);
+      const skill = currentSkills.find(item => item.name === skillName);
+      if ((skill?.bonus || 0) >= 15) {
+        alert('Essa perícia já atingiu o limite de 15 pontos para Pontos de Personagem.');
+        return;
+      }
+      updateCharacter({ skillTraining: { ...activeCharacter.skillTraining, [skillName]: (activeCharacter.skillTraining[skillName] || 0) + 1 }, supplementData: nextData });
+      return;
+    }
+    if (target.startsWith('Maestria: ')) {
+      const name = target.slice('Maestria: '.length);
+      updateCharacter({ supplementData: { ...nextData, masteries: { ...(data.masteries || {}), [name]: (data.masteries?.[name] || 0) + 1 } } });
+      return;
+    }
+    if (target === 'Árvore de Sinapse') {
+      updateCharacter({ abilities: [...activeCharacter.abilities, { name: 'Nova Habilidade Sináptica', description: 'Descreva a habilidade adquirida nesta árvore de Sinapse.', category: 'Habilidades Sinápticas' }], supplementData: nextData });
+    }
+  };
+
+  const importDialog = pendingImport && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="import-title">
+      <div className="w-full max-w-md rounded border border-ruvia-accent/40 bg-ruvia-bg p-6 text-ruvia-text shadow-2xl">
+        <h2 id="import-title" className="text-xl font-bold">Carregar backup</h2>
+        <p className="mt-2 text-sm opacity-80">O arquivo contém {pendingImport.length} ficha(s). Como deseja prosseguir?</p>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={() => setPendingImport(null)} className="rounded border border-white/20 px-3 py-2 text-xs font-bold uppercase">Cancelar</button>
+          <button type="button" onClick={() => applyImport('merge')} className="rounded border border-ruvia-accent/50 px-3 py-2 text-xs font-bold uppercase text-ruvia-accent">Adicionar às fichas existentes</button>
+          <button type="button" onClick={() => applyImport('replace')} className="rounded bg-red-900 px-3 py-2 text-xs font-bold uppercase text-white">Substituir fichas existentes</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const abilityCategories = activeCharacter.supplement === 'fading-humans'
+    ? ['Habilidades', 'Fardos', 'Habilidades Sinápticas']
+    : activeCharacter.supplement === 'ad-astra'
+      ? ['Habilidades de Espécie', 'Habilidades de Especialização', 'Habilidades de Ofício', 'Talentos']
+      : activeCharacter.supplement === 'quatro-elementos'
+        ? ['Habilidades e Talentos']
+        : ['Habilidades', 'Talentos'];
+  const abilityEntries = activeCharacter.abilities.map((ability, index) => ({
+    ability,
+    index,
+    category: ability.category || abilityCategories[0],
+  }));
+
   const deleteCharacter = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCharacters(prev => prev.filter(c => c.id !== id));
     if (activeId === id) setActiveId(null);
+  };
+
+  const createFolder = () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    const folder = { id: crypto.randomUUID(), name };
+    setFolders(previous => [...previous, folder]);
+    setActiveFolderFilter(folder.id);
+    setNewFolderName('');
+  };
+
+  const moveCharacterToFolder = (characterId: string, folderId?: string) => {
+    setCharacters(previous => previous.map(character => {
+      if (character.id !== characterId) return character;
+      const { folderId: _previousFolderId, ...withoutFolder } = character;
+      return folderId ? { ...withoutFolder, folderId } : withoutFolder;
+    }));
+  };
+
+  const deleteFolder = (folderId: string) => {
+    setFolders(previous => previous.filter(folder => folder.id !== folderId));
+    setCharacters(previous => previous.map(character => {
+      if (character.folderId !== folderId) return character;
+      const { folderId: _removedFolderId, ...withoutFolder } = character;
+      return withoutFolder;
+    }));
+    if (activeFolderFilter === folderId) setActiveFolderFilter('all');
+  };
+
+  const renameFolder = (folderId: string) => {
+    const currentFolder = folders.find(folder => folder.id === folderId);
+    if (!currentFolder) return;
+    const name = window.prompt('Novo nome da pasta:', currentFolder.name)?.trim();
+    if (name) setFolders(previous => previous.map(folder => folder.id === folderId ? { ...folder, name } : folder));
+  };
+
+  const visibleCharacters = characters.filter(character => {
+    if (activeFolderFilter === 'all') return true;
+    if (activeFolderFilter === 'unfiled') return !character.folderId || !folders.some(folder => folder.id === character.folderId);
+    return character.folderId === activeFolderFilter;
+  }).filter(character =>
+    selectedSupplements.length === 0 || selectedSupplements.includes(character.supplement || 'modulo-basico')
+  ).filter(character =>
+    selectedLevels.length === 0 || selectedLevels.includes(getCharacterLevel(character))
+  );
+  const availableLevels: CharacterLevel[] = Array.from(new Set<CharacterLevel>(characters.map(getCharacterLevel)))
+    .sort((left, right) => {
+      if (left === 'none') return right === 'none' ? 0 : 1;
+      if (right === 'none') return -1;
+      return left - right;
+    });
+
+  const toggleSupplementFilter = (supplement: CharacterSupplement, checked: boolean) => {
+    const current = selectedSupplements.length === 0
+      ? SUPPLEMENT_OPTIONS.map(option => option.value)
+      : selectedSupplements;
+    const next = checked ? [...current, supplement] : current.filter(value => value !== supplement);
+    setSelectedSupplements(next.length === SUPPLEMENT_OPTIONS.length ? [] : next);
+  };
+
+  const toggleLevelFilter = (level: CharacterLevel, checked: boolean) => {
+    const current = selectedLevels.length === 0 ? availableLevels : selectedLevels;
+    const next = checked ? [...current, level] : current.filter(value => value !== level);
+    setSelectedLevels(next.length === availableLevels.length ? [] : next);
   };
 
   const addItemToInventory = (item: Item) => {
@@ -445,6 +946,7 @@ export default function App() {
   if (view === 'list') {
     return (
       <div className="max-w-[1024px] mx-auto min-h-screen p-8 flex flex-col gap-8 select-none">
+        {importDialog}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-ruvia-accent pb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -462,7 +964,7 @@ export default function App() {
               className="hidden" 
               accept=".json"
             />
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               className="px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs text-ruvia-accent/60 hover:text-ruvia-accent transition-colors border border-ruvia-accent/20 rounded-sm"
             >
@@ -474,14 +976,137 @@ export default function App() {
             >
               <Download size={16} /> Salvar Backup
             </button>
-            <button 
-              onClick={addNewCharacter}
-              className="bg-ruvia-accent text-ruvia-bg px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-            >
-              <UserPlus size={16} /> Novo Personagem
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setNewCharacterMenuOpen(open => !open)}
+                className="bg-ruvia-accent text-ruvia-bg px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+              >
+                <UserPlus size={16} /> Novo Personagem
+              </button>
+              {newCharacterMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 z-20 w-80 rounded-sm border border-ruvia-accent/30 bg-ruvia-bg/95 p-2 shadow-2xl backdrop-blur-md">
+                  {SUPPLEMENT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setNewCharacterMenuOpen(false);
+                        createCharacterFromSupplement(option.value as CharacterSupplement);
+                      }}
+                      className="block w-full border-x border-t border-ruvia-accent/20 px-3 py-2 text-left text-xs uppercase tracking-[0.15em] text-white/80 transition-colors last:border-b hover:bg-white/5 hover:text-ruvia-accent"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </header>
+
+        <section className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-ruvia-accent">
+              <Folder size={15} /> Pastas locais
+            </div>
+            <form
+              className="flex gap-2"
+              onSubmit={event => {
+                event.preventDefault();
+                createFolder();
+              }}
+            >
+              <input
+                className="min-w-0 rounded-sm border border-ruvia-accent/20 bg-ruvia-bg px-3 py-2 text-xs text-white outline-none focus:border-ruvia-accent"
+                aria-label="Nome da nova pasta"
+                placeholder="Nome da pasta"
+                value={newFolderName}
+                onChange={event => setNewFolderName(event.target.value)}
+              />
+              <button type="submit" className="flex shrink-0 items-center gap-2 rounded-sm border border-ruvia-accent/40 px-3 py-2 text-xs font-bold uppercase text-ruvia-accent hover:bg-ruvia-accent/10">
+                <FolderPlus size={14} /> Criar pasta
+              </button>
+            </form>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setActiveFolderFilter('all')} className={`rounded-sm border px-3 py-1.5 text-xs uppercase ${activeFolderFilter === 'all' ? 'border-ruvia-accent bg-ruvia-accent/10 text-ruvia-accent' : 'border-white/10 text-white/60'}`}>
+              Todas ({characters.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveFolderFilter('unfiled')}
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => {
+                event.preventDefault();
+                const characterId = event.dataTransfer.getData('text/character-id');
+                if (characterId) moveCharacterToFolder(characterId);
+              }}
+              className={`rounded-sm border px-3 py-1.5 text-xs uppercase ${activeFolderFilter === 'unfiled' ? 'border-ruvia-accent bg-ruvia-accent/10 text-ruvia-accent' : 'border-white/10 text-white/60'}`}
+            >
+              Sem pasta ({characters.filter(character => !character.folderId || !folders.some(folder => folder.id === character.folderId)).length})
+            </button>
+            {folders.map(folder => (
+              <div
+                key={folder.id}
+                className={`flex items-center rounded-sm border ${activeFolderFilter === folder.id ? 'border-ruvia-accent bg-ruvia-accent/10' : 'border-white/10'}`}
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => {
+                  event.preventDefault();
+                  const characterId = event.dataTransfer.getData('text/character-id');
+                  if (characterId) moveCharacterToFolder(characterId, folder.id);
+                }}
+              >
+                <button type="button" onClick={() => setActiveFolderFilter(folder.id)} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs uppercase ${activeFolderFilter === folder.id ? 'text-ruvia-accent' : 'text-white/60'}`}>
+                  <Folder size={13} /> {folder.name} ({characters.filter(character => character.folderId === folder.id).length})
+                </button>
+                <button type="button" aria-label={`Renomear pasta ${folder.name}`} onClick={() => renameFolder(folder.id)} className="px-1 text-[10px] text-white/40 hover:text-ruvia-accent">✎</button>
+                <button type="button" aria-label={`Excluir pasta ${folder.name}`} onClick={() => deleteFolder(folder.id)} className="px-2 text-white/40 hover:text-red-400"><X size={12} /></button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-white/40">Arraste uma ficha para uma pasta. Pastas e fichas privadas ficam salvas neste navegador.</p>
+        </section>
+
+        <section className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-ruvia-accent">Filtrar fichas</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <fieldset>
+              <legend className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Modelo</legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {SUPPLEMENT_OPTIONS.map(option => (
+                  <label key={option.value} className="flex items-center gap-2 text-xs text-white/75">
+                    <input
+                      type="checkbox"
+                      checked={selectedSupplements.length === 0 || selectedSupplements.includes(option.value)}
+                      onChange={event => toggleSupplementFilter(option.value, event.target.checked)}
+                      className="accent-ruvia-accent"
+                    />
+                    {SUPPLEMENT_CARD_LABELS[option.value]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Nível</legend>
+              {availableLevels.length === 0 ? (
+                <p className="text-xs text-white/40">Sem fichas cadastradas.</p>
+              ) : (
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {availableLevels.map(level => (
+                    <label key={level} className="flex items-center gap-2 text-xs text-white/75">
+                      <input
+                        type="checkbox"
+                        checked={selectedLevels.length === 0 || selectedLevels.includes(level)}
+                        onChange={event => toggleLevelFilter(level, event.target.checked)}
+                        className="accent-ruvia-accent"
+                      />
+                      {level === 'none' ? 'Sem nível' : `Nível ${level}`}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </fieldset>
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {characters.length === 0 ? (
@@ -496,26 +1121,40 @@ export default function App() {
                   Carregar Backup
                 </button>
                 <button 
-                  onClick={addNewCharacter}
+                  onClick={() => setNewCharacterMenuOpen(true)}
                   className="text-ruvia-accent border border-ruvia-accent px-4 py-2 hover:bg-ruvia-accent hover:text-ruvia-bg transition-all font-bold uppercase text-xs"
                 >
                   Criar Primeiro Herói
                 </button>
               </div>
             </div>
-          ) : characters.map(char => (
+          ) : visibleCharacters.length === 0 ? (
+            <div className="col-span-full rounded-sm border border-dashed border-ruvia-accent/20 py-12 text-center text-xs uppercase tracking-widest text-white/40">
+              Nenhuma ficha corresponde aos filtros atuais.
+            </div>
+          ) : visibleCharacters.map(char => (
             <motion.div
               layoutId={char.id}
               key={char.id}
+              draggable
+              onDragStart={event => {
+                event.dataTransfer.setData('text/character-id', char.id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              data-supplement={char.supplement || 'modulo-basico'}
               onClick={() => {
+                setShareNotice(false);
                 setActiveId(char.id);
                 setView('sheet');
               }}
-              className="bg-ruvia-card border border-ruvia-border p-6 rounded-sm cursor-pointer hover:border-ruvia-accent group transition-all"
+              className={`p-6 rounded-sm cursor-pointer transition-all group ${char.kind === 'nave' ? 'bg-[#0b1323] border border-sky-300/30 hover:border-sky-200' : `${SUPPLEMENT_THEMES[(char.supplement || 'modulo-basico')].card} hover:border-ruvia-accent`}`}
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-2xl font-bold text-white group-hover:text-ruvia-accent transition-colors">{char.name}</h3>
+                  <h3 className={`text-2xl font-bold transition-colors ${char.kind === 'nave' ? 'text-sky-100 group-hover:text-sky-300' : 'text-white group-hover:text-ruvia-accent'}`}>
+                    {char.kind === 'nave' ? <span className="mr-2 inline-flex align-middle"><Rocket size={20} /></span> : null}
+                    {char.name}
+                  </h3>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.entries(char.specializations || {}).filter(([_, lvl]: [string, any]) => (lvl as number) > 0).map(([name, lvl]: [string, any]) => (
                       <span key={name} className="text-[9px] bg-ruvia-accent/10 border border-ruvia-accent/20 text-ruvia-accent px-1 rounded-sm uppercase font-bold">
@@ -523,16 +1162,23 @@ export default function App() {
                       </span>
                     ))}
                   </div>
+                  <p className={`mt-2 text-[10px] font-medium uppercase tracking-[0.12em] ${char.kind === 'nave' ? 'text-sky-300' : 'text-ruvia-accent/80'}`}>
+                    {SUPPLEMENT_CARD_LABELS[char.supplement || 'modulo-basico']}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-widest text-ruvia-accent/60">Nível Total</p>
-                  <p className="text-xl font-black">
-                    {(Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1}
-                  </p>
+                  {char.kind === 'nave' ? (
+                    <p className="text-xs uppercase tracking-widest text-sky-300">{char.shipData?.size || 'Pequena'}</p>
+                  ) : char.supplement !== 'quatro-elementos' && char.supplement !== 'fading-humans' ? (
+                    <>
+                      <p className="text-[10px] uppercase tracking-widest text-ruvia-accent/60">Nível Total</p>
+                      <p className="text-xl font-black">{char.supplement === 'ad-astra' ? char.level || 1 : (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1}</p>
+                    </>
+                  ) : null}
                 </div>
               </div>
               
-              <div className="mt-6 flex flex-wrap gap-4 text-[10px] uppercase font-bold opacity-60">
+              <div data-character-stats={char.kind === 'nave' ? 'hidden' : 'visible'} className="mt-6 flex flex-wrap gap-4 text-[10px] uppercase font-bold opacity-60">
                 <div className="flex items-center gap-1">
                   <Heart size={10} className="text-red-500" /> 
                   {(() => {
@@ -619,12 +1265,34 @@ export default function App() {
         <footer className="mt-auto pt-10 text-[10px] uppercase tracking-[0.2em] text-ruvia-accent/40 text-center">
           © MMXXIV RÚVIA RPG SYSTEM • Gerenciador de Fichas
         </footer>
-      </div>
+          {importDialog}
+        </div>
+    );
+  }
+
+  if (activeCharacter.kind === 'nave') {
+    const shipData = activeCharacter.shipData || createShipData();
+    return (
+        <>
+          <input type="file" ref={fileInputRef} onChange={importCharacters} className="hidden" accept=".json" />
+          <ShipSheetEditor
+            name={activeCharacter.name}
+            data={shipData}
+            onNameChange={name => updateCharacter({ name })}
+            onChange={updateShipData}
+            onBack={() => setView('list')}
+            onSave={exportCurrentCharacter}
+            onLoad={() => fileInputRef.current?.click()}
+          />
+          {importDialog}
+        </>
     );
   }
 
   return (
-    <div className="max-w-[1024px] mx-auto min-h-screen p-8 flex flex-col gap-6 select-none sm:p-4">
+    <div data-supplement={activeCharacter.supplement || 'modulo-basico'} className={`max-w-[1024px] mx-auto min-h-screen p-8 flex flex-col gap-6 select-none sm:p-4 supplement-sheet supplement-${activeCharacter.supplement || 'modulo-basico'}`}>
+        <input type="file" ref={fileInputRef} onChange={importCharacters} className="hidden" accept=".json" />
+        {importDialog}
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-ruvia-accent pb-4">
         <motion.div 
@@ -633,7 +1301,10 @@ export default function App() {
           className="flex items-center gap-4"
         >
           <button 
-            onClick={() => { setView('list'); }}
+            onClick={() => {
+              setShareNotice(false);
+              setView('list');
+            }}
             className="p-2 border border-ruvia-accent/30 text-ruvia-accent hover:bg-ruvia-accent hover:text-ruvia-bg transition-colors"
           >
             <ArrowLeft size={18} />
@@ -650,19 +1321,50 @@ export default function App() {
             className="text-left md:text-right mt-4 md:mt-0 w-full md:w-auto flex flex-col items-start md:items-end gap-3"
           >
             {/* Origin Selection */}
-            <div className="flex items-center gap-1 bg-ruvia-panel px-3 py-1 border border-ruvia-accent shadow-lg rounded-sm">
-              <span className="text-[10px] text-ruvia-accent font-black uppercase tracking-tighter mr-1">Origem do Herói:</span>
+            {!isFadingHumans && <div className="flex max-w-full flex-wrap items-center gap-1 bg-ruvia-panel px-3 py-1 border border-ruvia-accent shadow-lg rounded-sm">
+              <span className="text-[10px] text-ruvia-accent font-black uppercase tracking-tighter mr-1">{isAdAstra ? 'Espécie:' : 'Origem do Herói:'}</span>
               <select 
-                className="bg-transparent text-white font-bold outline-none text-sm cursor-pointer hover:text-ruvia-accent transition-colors"
-                value={activeCharacter.origin || ''}
-                onChange={e => updateCharacter({ origin: e.target.value })}
+                className="max-w-[160px] bg-transparent text-white font-bold outline-none text-sm cursor-pointer hover:text-ruvia-accent transition-colors"
+                value={isAdAstra ? (activeCharacter.species || '') : (activeCharacter.origin || '')}
+                onChange={e => isAdAstra
+                  ? updateCharacter({ species: e.target.value })
+                  : updateCharacter({ origin: e.target.value })}
               >
-                <option value="" className="bg-ruvia-bg italic">Escolha uma Origem...</option>
-                {ORIGINS.map(o => (
-                  <option key={o.name} value={o.name} className="bg-ruvia-bg font-bold">{o.name}</option>
+                <option value="" className="bg-ruvia-bg italic">{isAdAstra ? 'Escolha uma espécie...' : 'Escolha uma Origem...'}</option>
+                {(isAdAstra ? AD_ASTRA_SPECIES : characterOriginOptions).map(name => (
+                  <option key={name} value={name} className="bg-ruvia-bg font-bold">{name}</option>
                 ))}
               </select>
+            </div>}
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={exportCurrentCharacter}
+                className={`px-3 py-1.5 rounded-sm border text-[10px] font-black uppercase tracking-[0.12em] transition-all ${activeSupplementTheme.badge}`}
+              >
+                Salvar backup da ficha
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className={`px-3 py-1.5 rounded-sm border text-[10px] font-black uppercase tracking-[0.12em] transition-all ${activeSupplementTheme.badge}`}
+              >
+                Carregar backup
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareNotice(true)}
+                className={`flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] transition-all ${activeSupplementTheme.badge}`}
+              >
+                Compartilhar (em breve)
+              </button>
             </div>
+            {shareNotice && (
+              <div className="w-full rounded-sm border border-current/15 bg-black/10 p-2 text-left text-[11px]">
+                <p className="opacity-70">O compartilhamento simultâneo por link está em desenvolvimento e ainda não está disponível.</p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 w-full">
               <input 
@@ -671,9 +1373,44 @@ export default function App() {
                 onChange={e => updateCharacter({ name: e.target.value })}
                 placeholder="NOME"
               />
-              <div className="flex flex-col gap-2 md:items-end">
+              {!isNoLevelSupplement && <div className="flex flex-col gap-2 md:items-end">
+                {isAdAstra ? (
+                  <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end">
+                    <label className="flex items-center gap-2 text-[10px] font-bold uppercase text-ruvia-accent">
+                      Especialização
+                      <select className="max-w-48 bg-ruvia-panel text-white p-1" value={activeCharacter.specializationChoice || ''} onChange={e => updateCharacter({ specializationChoice: e.target.value })}>
+                        <option value="">Escolher...</option>
+                        {AD_ASTRA_SPECIALIZATIONS.map(name => <option key={name}>{name}</option>)}
+                      </select>
+                    </label>
+                    {activeCharacter.offices?.map((office, index) => (
+                      <label key={index} className="flex items-center gap-2 text-[10px] font-bold uppercase text-ruvia-accent">
+                        Ofício {index + 1}
+                        <select className="max-w-48 bg-ruvia-panel text-white p-1" value={office} onChange={e => updateCharacter({ offices: activeCharacter.offices?.map((value, i) => i === index ? e.target.value : value) })}>
+                          <option value="">Escolher...</option>
+                          {AD_ASTRA_OFFICES.map(name => <option key={name}>{name}</option>)}
+                        </select>
+                      </label>
+                    ))}
+                    {(!activeCharacter.offices || activeCharacter.offices.length === 0) && (
+                      <label className="flex items-center gap-2 text-[10px] font-bold uppercase text-ruvia-accent">
+                        Ofício
+                        <select className="max-w-48 bg-ruvia-panel text-white p-1" value="" onChange={e => updateCharacter({ offices: [e.target.value] })}>
+                          <option value="">Escolher...</option>
+                          {AD_ASTRA_OFFICES.map(name => <option key={name}>{name}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {totalLevel >= 9 && (activeCharacter.offices?.length || 0) < 2 && (
+                      <button type="button" onClick={() => updateCharacter({ offices: [...(activeCharacter.offices || []), ''] })} className="text-[10px] text-ruvia-accent underline">Adicionar segundo Ofício</button>
+                    )}
+                    <label className="flex items-center gap-1 text-[10px] font-bold uppercase text-ruvia-accent">
+                      <input type="checkbox" checked={activeCharacter.isCaptain || false} onChange={e => updateCharacter({ isCaptain: e.target.checked })} /> Capitão
+                    </label>
+                  </div>
+                ) : (
                 <div className="flex flex-wrap gap-1 justify-start md:justify-end max-w-sm">
-                  {SPECIALIZATIONS_LIST.map(spec => {
+                  {characterSpecializations.map(spec => {
                     const level = activeCharacter.specializations[spec] || 0;
                     return (
                       <div 
@@ -708,23 +1445,26 @@ export default function App() {
                     );
                   })}
                 </div>
+                )}
                 <div className="flex items-center gap-1 bg-ruvia-panel px-2 border border-ruvia-accent/30 self-start md:self-end">
                   <span className="text-[10px] text-ruvia-accent font-bold">NÍVEL TOTAL</span>
-                  <span className="text-white w-10 font-bold text-center text-sm">{totalLevel.toString().padStart(2, '0')}</span>
+                  {isAdAstra ? (
+                    <input type="number" min={1} max={20} className="bg-transparent text-white w-10 font-bold text-center text-sm" value={totalLevel} onChange={e => updateCharacter({ level: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })} />
+                  ) : <span className="text-white w-10 font-bold text-center text-sm">{totalLevel.toString().padStart(2, '0')}</span>}
                 </div>
-              </div>
+              </div>}
             </div>
           </motion.div>
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 gap-10">
+      <div className="flex min-w-0 flex-col flex-1 gap-10">
         
         {/* Top Section: Basic Stats, Attributes, Domains & Elements */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid min-w-0 grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Attributes & Status */}
-          <aside className="lg:col-span-4 flex flex-col gap-8">
+          <aside className="min-w-0 lg:col-span-4 flex flex-col gap-8">
             <div className="space-y-8">
               <div className="relative group">
                 <div className="absolute -left-4 top-0 w-1 h-full bg-ruvia-accent"></div>
@@ -739,14 +1479,14 @@ export default function App() {
                     { label: 'EXPRESSÃO', key: 'expressao', icon: <Scroll size={14} className="text-ruvia-accent/50" /> },
                     { label: 'CARISMA', key: 'carisma', icon: <Heart size={14} className="text-ruvia-accent/50" /> },
                   ].map((attr) => (
-                    <div key={attr.key} className="flex justify-between items-center border-b border-ruvia-panel pb-1 group/item">
-                      <div className="flex items-center gap-2">
+                    <div key={attr.key} className="flex min-w-0 justify-between items-center gap-2 border-b border-ruvia-panel pb-1 group/item">
+                      <div className="flex min-w-0 items-center gap-2">
                         {attr.icon}
-                        <span className="text-base tracking-tight font-medium uppercase">{attr.label}</span>
+                        <span className="text-sm sm:text-base tracking-tight font-medium uppercase">{attr.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex items-baseline gap-1 mr-2">
-                          <span className="text-2xl font-black text-white italic tracking-tighter">
+                          <span className="text-xl sm:text-2xl font-black text-white italic tracking-tighter">
                             {effectiveAttributes[attr.key as keyof typeof effectiveAttributes].toString().padStart(2, '0')}
                           </span>
                         </div>
@@ -764,13 +1504,30 @@ export default function App() {
             </div>            {/* Status Bars */}
             <div className="space-y-6">
               {[
-                { label: 'PONTOS DE VIDA', key: 'pv', color: 'bg-red-700' },
-                { label: 'PONTOS DE MANA', key: 'pm', color: 'bg-blue-600' },
+                {
+                  label: 'PONTOS DE VIDA',
+                  key: 'pv',
+                  color: activeCharacter.supplement === 'quatro-elementos' ? 'bg-gradient-to-r from-rose-500 to-rose-300'
+                    : activeCharacter.supplement === 'fading-humans' ? 'bg-gradient-to-r from-red-700 to-pink-400'
+                      : 'bg-red-700',
+                },
+                {
+                  label: activeCharacter.supplement === 'quatro-elementos' ? 'PONTOS DE CHI'
+                    : activeCharacter.supplement === 'fading-humans' ? 'PONTOS DE SÍNTESE'
+                      : activeCharacter.supplement === 'infames-condutores' || isAdAstra ? 'PONTOS DE ENERGIA'
+                        : 'PONTOS DE MANA',
+                  key: 'pm',
+                  color: activeCharacter.supplement === 'quatro-elementos' ? 'bg-[#54b9ad]'
+                    : activeCharacter.supplement === 'fading-humans' ? 'bg-gradient-to-r from-pink-300 to-violet-300'
+                      : activeCharacter.supplement === 'ad-astra' ? 'bg-cyan-500'
+                        : activeCharacter.supplement === 'infames-condutores' ? 'bg-emerald-500'
+                          : 'bg-blue-600',
+                },
               ].map(stat => (
                 <div key={stat.key}>
                   <div className="flex justify-between items-center text-[10px] uppercase tracking-wider mb-1 font-bold">
                     <div className="flex items-center gap-2">
-                       <button
+                       {activeCharacter.supplement === 'modulo-basico' && <button
                          type="button"
                          onClick={() => {
                            if (stat.key === 'pv') {
@@ -805,7 +1562,7 @@ export default function App() {
                              <span>-{3 * totalLevel}</span>
                            </>
                          )}
-                       </button>
+                       </button>}
                       <span>{stat.label}</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -818,13 +1575,13 @@ export default function App() {
                           updateStatCurrent(stat.key as 'pv'|'pm', val);
                         }}
                       />
-                      <span>/</span>
+                      {activeCharacter.supplement !== 'infames-condutores' && <span>/</span>}
                       <div className="flex items-center gap-1 group/adj">
-                        <span className="text-white w-10 text-right opacity-60">{statsWithOrigin[stat.key as 'pv' | 'pm'].max}</span>
+                        {activeCharacter.supplement !== 'infames-condutores' && <span className="text-white w-10 text-right opacity-60">{statsWithOrigin[stat.key as 'pv' | 'pm'].max}</span>}
                         <input 
                           type="number"
                           placeholder="±"
-                          className="w-8 bg-transparent text-[8px] text-ruvia-accent opacity-0 group-hover/adj:opacity-100 focus:opacity-100 outline-none text-center border-b border-ruvia-accent/30"
+                          className={`w-8 bg-transparent text-[8px] text-ruvia-accent ${activeCharacter.supplement === 'infames-condutores' ? 'opacity-100' : 'opacity-0 group-hover/adj:opacity-100 focus:opacity-100'} outline-none text-center border-b border-ruvia-accent/30`}
                           value={stat.key === 'pv' ? activeCharacter.pvAdjustment : activeCharacter.pmAdjustment}
                           onChange={e => updateCharacter({ [stat.key === 'pv' ? 'pvAdjustment' : 'pmAdjustment']: parseInt(e.target.value) || 0 })}
                         />
@@ -834,7 +1591,7 @@ export default function App() {
                   <div className="h-3 bg-ruvia-panel rounded-full overflow-hidden border border-white/5 relative">
                       <motion.div 
                         initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, (statsWithOrigin[stat.key as 'pv'|'pm'].current / statsWithOrigin[stat.key as 'pv'|'pm'].max) * 100)}%` }}
+                        animate={{ width: `${statsWithOrigin[stat.key as 'pv'|'pm'].max > 0 ? Math.min(100, (statsWithOrigin[stat.key as 'pv'|'pm'].current / statsWithOrigin[stat.key as 'pv'|'pm'].max) * 100) : 0}%` }}
                         className={`h-full ${stat.color} transition-all duration-500`}
                       />
                   </div>
@@ -842,6 +1599,20 @@ export default function App() {
               ))}
             </div>
 
+            {activeCharacter.supplement === 'infames-condutores' && (
+              <section className="rounded-sm border border-white/10 bg-black/20 p-3">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Histórico recente de PV e PE</h3>
+                <div className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto">
+                  {[...(activeCharacter.statChangeLog || [])].reverse().map(change => (
+                    <div key={change.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span>{change.key.toUpperCase()}: {change.before} → {change.after} <span className="opacity-60">{new Date(change.changedAt).toLocaleTimeString()}</span></span>
+                      <button type="button" onClick={() => undoStatChange(change.id)} className="rounded border border-white/20 px-2 py-0.5">Desfazer</button>
+                    </div>
+                  ))}
+                  {(activeCharacter.statChangeLog || []).length === 0 && <span className="text-xs opacity-60">Nenhuma mudança registrada nesta sessão.</span>}
+                </div>
+              </section>
+            )}
 
             {/* Soul Tests */}
             <div className="p-4 bg-ruvia-panel/50 border border-ruvia-accent/20 rounded-sm shadow-inner">
@@ -857,7 +1628,7 @@ export default function App() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 items-center">
-                <button
+                {activeCharacter.supplement === 'modulo-basico' && <button
                   type="button"
                   onClick={() => updateCharacter({ soulTestStarActive: !activeCharacter.soulTestStarActive })}
                   className={`w-8 h-8 rounded-full transition-all duration-500 flex items-center justify-center border ${
@@ -871,7 +1642,7 @@ export default function App() {
                     size={16} 
                     className={activeCharacter.soulTestStarActive ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'} 
                   />
-                </button>
+                </button>}
                 
                 {/* Divisor Visual */}
                 <div className="w-[1px] h-6 bg-white/10 mx-1"></div>
@@ -923,7 +1694,7 @@ export default function App() {
           </aside>
 
           {/* Domains & Elements and Notes */}
-          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className={`lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6 ${activeCharacter.supplement !== 'modulo-basico' ? 'hidden' : ''}`}>
             <section className="bg-ruvia-card border border-ruvia-border p-4 rounded-sm relative shadow-2xl flex flex-col gap-8 backdrop-blur-sm bg-white/5 min-h-full">
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -1000,14 +1771,14 @@ export default function App() {
                 />
               </div>
 
-              {activeCharacter.origin && (
+              {(activeCharacter.origin || activeCharacter.supplement === 'ad-astra' || activeCharacter.supplement === 'fading-humans') && (
                 <div className="bg-ruvia-card border border-ruvia-accent p-4 shadow-2xl rounded-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles size={14} className="text-ruvia-accent" />
                     <p className="text-[10px] uppercase text-ruvia-accent font-bold tracking-widest">Habilidade de Origem</p>
                   </div>
                   {(() => {
-                    const origin = ORIGINS.find(o => o.name === activeCharacter.origin);
+                    const origin = activeOriginDetails;
                     return origin ? (
                       <div>
                         <p className="text-sm font-bold text-white uppercase italic">{origin.abilityName}</p>
@@ -1020,10 +1791,32 @@ export default function App() {
               )}
             </div>
           </div>
+
+          {activeCharacter.supplement !== 'modulo-basico' && (
+            <div className="min-w-0 lg:col-span-8">
+              {activeOriginDetails && (activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'infames-condutores') && (
+                <section className="mb-4 rounded-sm border border-current/20 bg-black/10 p-4">
+                  <p className="text-[10px] font-medium uppercase tracking-widest opacity-70">Habilidade de Origem</p>
+                  <h3 className="mt-1 font-semibold uppercase">{activeOriginDetails.abilityName}</h3>
+                  <p className="mt-1 text-sm">{activeOriginDetails.abilityDescription}</p>
+                  <p className="mt-2 text-xs opacity-70">{activeOriginDetails.bonus}</p>
+                </section>
+              )}
+              <SupplementPanels
+                supplement={activeCharacter.supplement || 'modulo-basico'}
+                data={activeCharacter.supplementData || {}}
+                attributes={effectiveAttributes}
+                skills={currentSkills}
+                trainingPoints={trainingPoints}
+                onChange={updateSupplementData}
+                onSpendCharacterPoint={spendCharacterPoint}
+              />
+            </div>
+          )}
         </div>
 
         {/* Perícias Section - Full Width */}
-        <section className="flex flex-col gap-4">
+        <section className="min-w-0 flex flex-col gap-4">
           <div className="bg-ruvia-panel/30 border border-ruvia-accent/20 p-4 rounded-sm flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Treinamento</span>
@@ -1050,20 +1843,20 @@ export default function App() {
             )}
           </div>
 
-          <div className="bg-ruvia-card border border-ruvia-border p-8 rounded-sm shadow-2xl">
+          <div className="min-w-0 bg-ruvia-card border border-ruvia-border p-4 sm:p-8 rounded-sm shadow-2xl">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-10 gap-y-4">
               {currentSkills.map((skill, idx) => {
                 const isSkillLocked = skill.isLocked && !activeCharacter.unlockedSkills.includes(skill.name);
                 return (
-                   <div 
+                   <div
                      key={idx} 
-                     className={`flex justify-between items-center pb-2 border-b border-ruvia-panel transition-all ${isSkillLocked ? 'opacity-20 grayscale scale-[0.98]' : 'hover:border-ruvia-accent group'}`}
+                     className={`flex min-w-0 justify-between items-center gap-2 pb-2 border-b border-ruvia-panel transition-all ${isSkillLocked ? 'opacity-20 grayscale scale-[0.98]' : 'hover:border-ruvia-accent group'}`}
                    >
-                     <div className="flex flex-col">
+                     <div className="flex min-w-0 flex-col">
                         <div className="flex items-center gap-2">
                           <button 
                               onClick={() => skill.isLocked && toggleSkillUnlock(skill.name)}
-                              className={`text-[11px] font-black uppercase tracking-tight transition-colors ${skill.isLocked ? 'cursor-pointer hover:text-ruvia-accent' : 'cursor-default text-white'}`}
+                              className={`max-w-[100px] truncate text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-colors ${skill.isLocked ? 'cursor-pointer hover:text-ruvia-accent' : 'cursor-default text-white'}`}
                           >
                               {skill.name}
                           </button>
@@ -1071,7 +1864,7 @@ export default function App() {
                         </div>
                         <span className="text-[8px] text-gray-500 uppercase font-bold">Modificador</span>
                      </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-2">
                         <span className="text-xl font-black text-ruvia-accent italic font-mono w-10 text-right group-hover:scale-110 transition-transform">
                             {skill.bonus >= 0 ? '+' : ''}{skill.bonus}
                         </span>
@@ -1092,68 +1885,63 @@ export default function App() {
         </section>
 
         {/* Habilidades Section - Full Width */}
-        <section className="flex flex-col gap-4">
-          <div className="bg-ruvia-panel/30 border border-ruvia-accent/20 p-4 rounded-sm flex justify-between items-center">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Poderes & Especialidades</span>
-              <h2 className="text-2xl font-black italic uppercase italic">Habilidades</h2>
-            </div>
-            <button 
-              onClick={() => updateCharacter({
-                abilities: [...activeCharacter.abilities, { name: 'Nova Habilidade', description: 'Explicação...' }]
-              })}
-              className="bg-ruvia-accent text-ruvia-bg px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs hover:scale-105 transition-transform"
-            >
-              <Plus size={16} /> Adicionar Habilidade
-            </button>
-          </div>
-
-          <div className="bg-ruvia-card border border-ruvia-border p-8 rounded-sm shadow-2xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {activeCharacter.abilities.length === 0 ? (
-               <div className="col-span-full py-12 flex flex-col items-center justify-center opacity-20 border-2 border-dashed border-white/10">
-                  <Scroll size={40} />
-                  <p className="mt-2 text-xs uppercase font-bold tracking-[0.3em]">Nenhuma habilidade registrada</p>
-               </div>
-            ) : activeCharacter.abilities.map((ability, idx) => (
-              <motion.div 
-                layout
-                key={idx} 
-                className="bg-ruvia-panel border border-white/5 p-4 rounded-sm relative group hover:border-ruvia-accent/50 transition-colors"
-              >
-                <input 
-                  className="text-sm font-black text-white mb-2 uppercase tracking-wide bg-transparent outline-none w-full border-b border-white/10 focus:border-ruvia-accent transition-colors"
-                  value={ability.name}
-                  onChange={e => {
-                    const newAbilities = [...activeCharacter.abilities];
-                    newAbilities[idx].name = e.target.value;
-                    updateCharacter({ abilities: newAbilities });
-                  }}
-                />
-                <textarea 
-                  className="text-[11px] leading-relaxed text-gray-400 bg-transparent outline-none w-full h-24 mt-2 hover:bg-white/5 transition-colors resize-none scrollbar-hide"
-                  value={ability.description}
-                  onChange={e => {
-                    const newAbilities = [...activeCharacter.abilities];
-                    newAbilities[idx].description = e.target.value;
-                    updateCharacter({ abilities: newAbilities });
-                  }}
-                />
-                <button 
-                  onClick={() => updateCharacter({
-                    abilities: activeCharacter.abilities.filter((_, i) => i !== idx)
-                  })}
-                  className="absolute right-2 top-2 text-red-500/30 hover:text-red-500 p-1 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </motion.div>
-            ))}
-          </div>
+        <section className="min-w-0 flex flex-col gap-4">
+          {abilityCategories.map(category => {
+            const entries = abilityEntries.filter(entry => entry.category === category);
+            return (
+              <div key={category} className="flex flex-col gap-3">
+                <div className="bg-ruvia-panel/30 border border-ruvia-accent/20 p-4 rounded-sm flex flex-wrap gap-3 justify-between items-center">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Poderes & Especialidades</span>
+                    <h2 className="text-lg sm:text-2xl font-black italic uppercase">{category}</h2>
+                  </div>
+                  <button
+                    onClick={() => updateCharacter({ abilities: [...activeCharacter.abilities, { name: `Nova ${category}`, description: 'Descrição...', category }] })}
+                    className="bg-ruvia-accent text-ruvia-bg px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs hover:scale-105 transition-transform"
+                  >
+                    <Plus size={16} /> Adicionar
+                  </button>
+                </div>
+                <div className="min-w-0 bg-ruvia-card border border-ruvia-border p-4 sm:p-6 rounded-sm shadow-2xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {entries.length === 0 ? (
+                    <div className="col-span-full py-8 flex flex-col items-center justify-center opacity-30 border-2 border-dashed border-white/10">
+                      <Scroll size={32} />
+                      <p className="mt-2 text-xs uppercase font-bold tracking-[0.2em]">Nenhum item registrado</p>
+                    </div>
+                  ) : entries.map(({ ability, index }) => (
+                    <motion.div
+                      layout
+                      key={`${category}-${index}`}
+                      className="bg-ruvia-panel border border-white/5 p-4 rounded-sm relative group hover:border-ruvia-accent/50 transition-colors"
+                    >
+                      <input
+                        className="text-sm font-black text-white mb-2 uppercase tracking-wide bg-transparent outline-none w-full border-b border-white/10 focus:border-ruvia-accent transition-colors"
+                        value={ability.name}
+                        onChange={event => updateCharacter({ abilities: activeCharacter.abilities.map((item, i) => i === index ? { ...item, name: event.target.value } : item) })}
+                      />
+                      <textarea
+                        className="text-[11px] leading-relaxed text-gray-400 bg-transparent outline-none w-full h-24 mt-2 hover:bg-white/5 transition-colors resize-none scrollbar-hide"
+                        value={ability.description}
+                        onChange={event => updateCharacter({ abilities: activeCharacter.abilities.map((item, i) => i === index ? { ...item, description: event.target.value } : item) })}
+                      />
+                      <button
+                        onClick={() => updateCharacter({ abilities: activeCharacter.abilities.filter((_, i) => i !== index) })}
+                        className="absolute right-2 top-2 text-red-500/30 hover:text-red-500 p-1 transition-colors"
+                        aria-label="Remover habilidade"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         {/* Inventário Section - Full Width */}
-        <section className="flex flex-col gap-4">
-          <div className="bg-ruvia-panel/30 border border-ruvia-accent/20 p-4 rounded-sm flex justify-between items-center">
+        <section className="min-w-0 flex flex-col gap-4">
+          <div className="bg-ruvia-panel/30 border border-ruvia-accent/20 p-4 rounded-sm flex flex-wrap gap-3 justify-between items-center">
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Posse de Equipamentos</span>
               <h2 className="text-2xl font-black italic uppercase italic">Inventário</h2>
@@ -1166,7 +1954,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="bg-ruvia-card border border-ruvia-border p-8 rounded-sm shadow-2xl">
+          <div className="min-w-0 bg-ruvia-card border border-ruvia-border p-4 sm:p-8 rounded-sm shadow-2xl">
             {activeCharacter.inventory.length === 0 ? (
               <div className="h-40 flex flex-col items-center justify-center text-ruvia-accent/20 border-2 border-dashed border-white/5 rounded">
                 <Package size={48} />

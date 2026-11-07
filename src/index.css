@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Spectral:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -29,4 +30,109 @@
 
 .ruvia-scrollbar::-webkit-scrollbar-thumb {
   @apply bg-ruvia-accent/50 rounded-full;
+}
+
+.supplement-sheet {
+  width: 100%;
+  max-width: 100%;
+  padding-left: max(1rem, calc((100vw - 1024px) / 2));
+  padding-right: max(1rem, calc((100vw - 1024px) / 2));
+}
+
+.supplement-sheet[data-supplement]:not([data-supplement="modulo-basico"]) {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.supplement-quatro-elementos {
+  color: #17120c;
+  background-color: #efe2c4;
+  background-image:
+    radial-gradient(ellipse at 12% 18%, rgb(255 255 255 / 55%), transparent 48%),
+    radial-gradient(ellipse at 88% 82%, rgb(142 103 58 / 12%), transparent 46%),
+    repeating-linear-gradient(3deg, rgb(124 92 52 / 3%) 0 1px, transparent 1px 5px);
+  font-family: "Herculanum Roman", "Papyrus", fantasy;
+}
+
+.supplement-quatro-elementos .text-white,
+.supplement-quatro-elementos input,
+.supplement-quatro-elementos textarea,
+.supplement-quatro-elementos select {
+  color: #17120c !important;
+}
+
+.supplement-quatro-elementos [class*="bg-ruvia-"],
+.supplement-quatro-elementos [class*="bg-white/"] {
+  background-color: rgb(136 104 62 / 12%);
+}
+
+.supplement-infames-condutores {
+  color: #f3f4f6;
+  background-color: #050505;
+  background-image: radial-gradient(ellipse at center, #141414, #030303 70%);
+  font-family: "Exo 2", "Inter", sans-serif;
+}
+
+[data-supplement="infames-condutores"] .font-black,
+[data-supplement="infames-condutores"] .font-extrabold {
+  font-weight: 600;
+}
+
+[data-supplement="infames-condutores"] .font-bold {
+  font-weight: 500;
+}
+
+.supplement-fading-humans {
+  color: #fff1f2;
+  background-color: #18090d;
+  background-image: radial-gradient(ellipse at 50% 0%, #40151f, #18090d 65%);
+  font-family: "Falling Sky", "Lovelo", "Exo 2", sans-serif;
+}
+
+.supplement-ad-astra {
+  color: #e0f2fe;
+  background-color: #020817;
+  background-image:
+    radial-gradient(1px 1px at 12% 15%, #dff7ff 55%, transparent),
+    radial-gradient(1px 1px at 36% 63%, #7dd3fc 55%, transparent),
+    radial-gradient(1px 1px at 78% 24%, #dff7ff 55%, transparent),
+    radial-gradient(1px 1px at 92% 78%, #7dd3fc 55%, transparent),
+    radial-gradient(ellipse at top, #0b1c34, #020817 68%);
+  font-family: "Orbitron", "Exo 2", sans-serif;
+}
+
+.supplement-sheet.supplement-quatro-elementos {
+  border-color: #8f6b45;
+}
+
+.supplement-sheet.supplement-infames-condutores {
+  border-color: #374151;
+}
+
+.supplement-sheet.supplement-fading-humans {
+  border-color: #7f1d1d;
+}
+
+.supplement-sheet.supplement-ad-astra {
+  border-color: #0e7490;
+}
+
+[data-character-stats="hidden"] {
+  display: none;
+}
+
+[data-supplement="quatro-elementos"] {
+  font-family: "Herculanum Roman", "Papyrus", fantasy;
+}
+
+[data-supplement="infames-condutores"] {
+  font-family: "Exo 2", "Inter", sans-serif;
+}
+
+[data-supplement="fading-humans"] {
+  font-family: "Falling Sky", "Lovelo", "Exo 2", sans-serif;
+}
+
+[data-supplement="ad-astra"] {
+  font-family: "Orbitron", "Exo 2", sans-serif;
 }
