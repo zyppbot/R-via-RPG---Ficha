@@ -150,7 +150,39 @@
 }
 
 [data-supplement="modulo-basico"] {
+  --sheet-menu-background: #181818;
+  --sheet-menu-color: #e0d2bc;
+  color-scheme: dark;
   font-family: "Alegreya", Georgia, serif;
+}
+
+[data-supplement="quatro-elementos"] {
+  --sheet-menu-background: #efe2c4;
+  --sheet-menu-color: #17120c;
+  color-scheme: light;
+}
+
+[data-supplement="infames-condutores"] {
+  --sheet-menu-background: #111827;
+  --sheet-menu-color: #f3f4f6;
+  color-scheme: dark;
+}
+
+[data-supplement="fading-humans"] {
+  --sheet-menu-background: #35131e;
+  --sheet-menu-color: #fff1f2;
+  color-scheme: dark;
+}
+
+[data-supplement="ad-astra"] {
+  --sheet-menu-background: #0b1323;
+  --sheet-menu-color: #e0f2fe;
+  color-scheme: dark;
+}
+
+[data-supplement] select option {
+  background-color: var(--sheet-menu-background);
+  color: var(--sheet-menu-color);
 }
 
 .supplement-sheet.supplement-quatro-elementos {
