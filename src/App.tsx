@@ -625,9 +625,14 @@ export default function App() {
     };
   }, [activeCharacter.stats, activeCharacter.origin, activeCharacter.supplement, activeOriginDetails, activeCharacter.supplementData?.physicalFrame, totalLevel, currentSkills, activeCharacter.pvAdjustment, activeCharacter.pmAdjustment, activeCharacter.pvReduced, activeCharacter.pmReduced, isAdAstra]);
 
+  const investedTrainingPoints = useMemo(
+    () => (Object.values(activeCharacter.skillTraining || {}) as number[]).reduce((sum, points) => sum + (points || 0), 0),
+    [activeCharacter.skillTraining]
+  );
+
   const trainingPoints = useMemo(() => {
     if (!activeCharacter) return 0;
-    const spent = (Object.values(activeCharacter.skillTraining || {}) as number[]).reduce((a, b) => a + (b || 0), 0);
+    const spent = investedTrainingPoints;
     if (activeCharacter.supplement === 'fading-humans') return 12 - spent;
     if (activeCharacter.supplement === 'ad-astra') return 10 + (totalLevel - 1) + (Math.floor(totalLevel / 5) * 3) - spent;
     const origin = activeOriginDetails;
@@ -641,7 +646,7 @@ export default function App() {
     const levelUpPoints = (totalLevel - 1) + Math.floor(totalLevel / 5) * 2;
     const totalTrainingPoints = base + levelUpPoints;
     return totalTrainingPoints + (activeCharacter.trainingPointsAdjustment || 0) - spent;
-  }, [activeCharacter.origin, activeCharacter.supplement, activeOriginDetails, activeCharacter.supplementData?.physicalFrame, activeCharacter.trainingPointsAdjustment, activeCharacter.skillTraining, effectiveAttributes.intelecto, totalLevel]);
+  }, [activeCharacter.origin, activeCharacter.supplement, activeOriginDetails, activeCharacter.supplementData?.physicalFrame, activeCharacter.trainingPointsAdjustment, investedTrainingPoints, effectiveAttributes.intelecto, totalLevel]);
 
   const toggleSkillUnlock = (skillName: string) => {
     const isUnlocked = activeCharacter.unlockedSkills.includes(skillName);
@@ -959,7 +964,7 @@ export default function App() {
             <h1 className="text-5xl font-black italic uppercase tracking-tighter">Personagens</h1>
           </div>
           <div className="flex flex-wrap gap-4 mt-4 md:mt-0">
-            <input 
+            <input
               type="file" 
               ref={fileInputRef} 
               onChange={importCharacters} 
@@ -1841,25 +1846,31 @@ export default function App() {
               <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Treinamento</span>
               <h2 className="text-2xl font-black italic uppercase italic">Perícias</h2>
             </div>
-            {activeCharacter.origin && (
-              <div className="flex items-center gap-6">
-                <div className="flex flex-col items-end">
-                  <span className="text-[9px] font-bold text-gray-500 uppercase italic">Ajuste Manual</span>
-                  <input 
-                    type="number"
-                    className="bg-ruvia-bg text-white w-14 text-center text-xs font-bold outline-none border border-ruvia-accent/20 rounded py-1"
-                    value={activeCharacter.trainingPointsAdjustment}
-                    onChange={e => updateCharacter({ trainingPointsAdjustment: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="flex flex-col items-center bg-ruvia-accent/10 border border-ruvia-accent/30 px-6 py-2 rounded-sm">
-                  <span className="text-[10px] font-bold text-ruvia-accent uppercase tracking-tighter">Pontos Disponíveis</span>
-                  <span className={`text-3xl font-black leading-none mt-1 ${trainingPoints < 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                    {trainingPoints}
-                  </span>
-                </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 md:justify-end">
+              <div className="flex flex-col items-center rounded-sm border border-ruvia-accent/30 bg-ruvia-accent/10 px-4 py-2">
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-ruvia-accent">Pontos investidos</span>
+                <span className="mt-1 text-3xl font-black leading-none text-white">{investedTrainingPoints}</span>
               </div>
-            )}
+              {activeCharacter.origin && (
+                <div className="flex items-center gap-6">
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase italic">Ajuste Manual</span>
+                    <input
+                      type="number"
+                      className="bg-ruvia-bg text-white w-14 text-center text-xs font-bold outline-none border border-ruvia-accent/20 rounded py-1"
+                      value={activeCharacter.trainingPointsAdjustment}
+                      onChange={e => updateCharacter({ trainingPointsAdjustment: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="flex flex-col items-center bg-ruvia-accent/10 border border-ruvia-accent/30 px-6 py-2 rounded-sm">
+                    <span className="text-[10px] font-bold text-ruvia-accent uppercase tracking-tighter">Pontos Disponíveis</span>
+                    <span className={`text-3xl font-black leading-none mt-1 ${trainingPoints < 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                      {trainingPoints}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="min-w-0 bg-ruvia-card border border-ruvia-border p-4 sm:p-8 rounded-sm shadow-2xl">
