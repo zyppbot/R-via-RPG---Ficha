@@ -978,7 +978,7 @@ export default function App() {
             >
               <Download size={16} /> Salvar Backup
             </button>
-            <div className="flex items-center gap-2">
+            <div className="relative flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setFiltersOpen(open => !open)}
@@ -1014,11 +1014,57 @@ export default function App() {
                   </div>
                 )}
               </div>
+              {filtersOpen && (
+                <section
+                  id="character-filters"
+                  className="absolute right-0 top-full z-30 mt-2 max-h-[70vh] w-[min(90vw,36rem)] overflow-y-auto rounded-sm border border-ruvia-accent/30 bg-ruvia-bg p-4 text-left shadow-2xl"
+                >
+                  <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-ruvia-accent">Filtrar fichas</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <fieldset>
+                      <legend className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Modelo</legend>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {SUPPLEMENT_OPTIONS.map(option => (
+                          <label key={option.value} className="flex items-center gap-2 text-xs text-white/75">
+                            <input
+                              type="checkbox"
+                              checked={selectedSupplements.length === 0 || selectedSupplements.includes(option.value)}
+                              onChange={event => toggleSupplementFilter(option.value, event.target.checked)}
+                              className="accent-ruvia-accent"
+                            />
+                            {SUPPLEMENT_CARD_LABELS[option.value]}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <fieldset>
+                      <legend className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Nível</legend>
+                      {availableLevels.length === 0 ? (
+                        <p className="text-xs text-white/40">Sem fichas cadastradas.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-x-4 gap-y-2">
+                          {availableLevels.map(level => (
+                            <label key={level} className="flex items-center gap-2 text-xs text-white/75">
+                              <input
+                                type="checkbox"
+                                checked={selectedLevels.length === 0 || selectedLevels.includes(level)}
+                                onChange={event => toggleLevelFilter(level, event.target.checked)}
+                                className="accent-ruvia-accent"
+                              />
+                              {level === 'none' ? 'Sem nível' : `Nível ${level}`}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </fieldset>
+                  </div>
+                </section>
+              )}
             </div>
           </div>
         </header>
 
-        {filtersOpen && <section id="character-filters" className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
+        <section className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-ruvia-accent">
               <Folder size={15} /> Pastas locais
@@ -1079,48 +1125,6 @@ export default function App() {
             ))}
           </div>
           <p className="mt-2 text-[10px] text-white/40">Arraste uma ficha para uma pasta. Pastas e fichas privadas ficam salvas neste navegador.</p>
-        </section>}
-
-        <section className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-ruvia-accent">Filtrar fichas</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            <fieldset>
-              <legend className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Modelo</legend>
-              <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {SUPPLEMENT_OPTIONS.map(option => (
-                  <label key={option.value} className="flex items-center gap-2 text-xs text-white/75">
-                    <input
-                      type="checkbox"
-                      checked={selectedSupplements.length === 0 || selectedSupplements.includes(option.value)}
-                      onChange={event => toggleSupplementFilter(option.value, event.target.checked)}
-                      className="accent-ruvia-accent"
-                    />
-                    {SUPPLEMENT_CARD_LABELS[option.value]}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset>
-              <legend className="mb-2 text-[10px] uppercase tracking-wider text-white/50">Nível</legend>
-              {availableLevels.length === 0 ? (
-                <p className="text-xs text-white/40">Sem fichas cadastradas.</p>
-              ) : (
-                <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {availableLevels.map(level => (
-                    <label key={level} className="flex items-center gap-2 text-xs text-white/75">
-                      <input
-                        type="checkbox"
-                        checked={selectedLevels.length === 0 || selectedLevels.includes(level)}
-                        onChange={event => toggleLevelFilter(level, event.target.checked)}
-                        className="accent-ruvia-accent"
-                      />
-                      {level === 'none' ? 'Sem nível' : `Nível ${level}`}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </fieldset>
-          </div>
         </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
