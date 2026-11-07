@@ -44,6 +44,7 @@ import {
   Rocket,
   Folder,
   FolderPlus,
+  Filter,
   X
 } from 'lucide-react';
 import ShipSheetEditor, { createShipData } from './ShipSheetEditor';
@@ -155,6 +156,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'sheet'>('list');
   const [newCharacterMenuOpen, setNewCharacterMenuOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<CharacterSheet[] | null>(null);
   const [shareNotice, setShareNotice] = useState(false);
   const [selectedSupplements, setSelectedSupplements] = useState<CharacterSupplement[]>([]);
@@ -976,34 +978,47 @@ export default function App() {
             >
               <Download size={16} /> Salvar Backup
             </button>
-            <div className="relative">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setNewCharacterMenuOpen(open => !open)}
-                className="bg-ruvia-accent text-ruvia-bg px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                type="button"
+                onClick={() => setFiltersOpen(open => !open)}
+                aria-label={filtersOpen ? 'Fechar filtros' : 'Abrir filtros'}
+                aria-expanded={filtersOpen}
+                aria-controls="character-filters"
+                title={filtersOpen ? 'Fechar filtros' : 'Filtrar fichas'}
+                className={`flex h-10 w-10 items-center justify-center rounded-sm border transition-colors ${filtersOpen ? 'border-ruvia-accent bg-ruvia-accent/10 text-ruvia-accent' : 'border-ruvia-accent/30 text-ruvia-accent/70 hover:border-ruvia-accent hover:text-ruvia-accent'}`}
               >
-                <UserPlus size={16} /> Novo Personagem
+                <Filter size={18} />
               </button>
-              {newCharacterMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 z-20 w-80 rounded-sm border border-ruvia-accent/30 bg-ruvia-bg/95 p-2 shadow-2xl backdrop-blur-md">
-                  {SUPPLEMENT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setNewCharacterMenuOpen(false);
-                        createCharacterFromSupplement(option.value as CharacterSupplement);
-                      }}
-                      className="block w-full border-x border-t border-ruvia-accent/20 px-3 py-2 text-left text-xs uppercase tracking-[0.15em] text-white/80 transition-colors last:border-b hover:bg-white/5 hover:text-ruvia-accent"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="relative">
+                <button
+                  onClick={() => setNewCharacterMenuOpen(open => !open)}
+                  className="bg-ruvia-accent text-ruvia-bg px-4 py-2 flex items-center gap-2 font-bold uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                >
+                  <UserPlus size={16} /> Novo Personagem
+                </button>
+                {newCharacterMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 z-20 w-80 rounded-sm border border-ruvia-accent/30 bg-ruvia-bg/95 p-2 shadow-2xl backdrop-blur-md">
+                    {SUPPLEMENT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setNewCharacterMenuOpen(false);
+                          createCharacterFromSupplement(option.value as CharacterSupplement);
+                        }}
+                        className="block w-full border-x border-t border-ruvia-accent/20 px-3 py-2 text-left text-xs uppercase tracking-[0.15em] text-white/80 transition-colors last:border-b hover:bg-white/5 hover:text-ruvia-accent"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
 
-        <section className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
+        {filtersOpen && <section id="character-filters" className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-ruvia-accent">
               <Folder size={15} /> Pastas locais
@@ -1064,7 +1079,7 @@ export default function App() {
             ))}
           </div>
           <p className="mt-2 text-[10px] text-white/40">Arraste uma ficha para uma pasta. Pastas e fichas privadas ficam salvas neste navegador.</p>
-        </section>
+        </section>}
 
         <section className="rounded-sm border border-ruvia-accent/20 bg-ruvia-panel/30 p-4">
           <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-ruvia-accent">Filtrar fichas</h2>
