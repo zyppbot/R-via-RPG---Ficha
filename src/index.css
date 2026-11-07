@@ -1,6 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Spectral:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800&display=swap');
+
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Macondo";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/Macondo-Regular.woff2") format("woff2");
+}
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -51,7 +60,7 @@
     radial-gradient(ellipse at 12% 18%, rgb(255 255 255 / 55%), transparent 48%),
     radial-gradient(ellipse at 88% 82%, rgb(142 103 58 / 12%), transparent 46%),
     repeating-linear-gradient(3deg, rgb(124 92 52 / 3%) 0 1px, transparent 1px 5px);
-  font-family: "Herculanum Roman", "Papyrus", fantasy;
+  font-family: "Macondo", "Herculanum Roman", "Papyrus", fantasy;
 }
 
 .supplement-quatro-elementos .text-white,
@@ -122,7 +131,7 @@
 }
 
 [data-supplement="quatro-elementos"] {
-  font-family: "Herculanum Roman", "Papyrus", fantasy;
+  font-family: "Macondo", "Herculanum Roman", "Papyrus", fantasy;
 }
 
 [data-supplement="infames-condutores"] {
