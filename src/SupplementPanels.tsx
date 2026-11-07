@@ -113,7 +113,14 @@ export default function SupplementPanels({ supplement, data, attributes, skills,
               </div>
               <div className="flex items-center gap-2">
                 <Info size={15} title="PV: +20%, arredondado para cima. Síntese: +20%, arredondado para baixo. Atributo: +1 (máximo 8). Perícia: +1 (máximo 15). Árvore de Sinapse: próxima habilidade. Maestria Sináptica: +1." />
-                <strong className="text-2xl">{data.characterPoints ?? 8}</strong>
+                <input
+                  type="number"
+                  min={0}
+                  aria-label="Pontos de Personagem disponíveis"
+                  className={`${input} w-20 text-center text-2xl font-bold`}
+                  value={data.characterPoints ?? 8}
+                  onChange={event => patch({ characterPoints: Math.max(0, Number(event.target.value) || 0) })}
+                />
               </div>
             </div>
             <p className="mt-2 text-xs">Pontos de Atributo disponíveis: {data.attributePoints ?? 8} • Pontos de Treinamento disponíveis: {trainingPoints}</p>
