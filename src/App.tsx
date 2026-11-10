@@ -750,7 +750,7 @@ export default function App() {
                       civilAttributes: { ...INITIAL_CHARACTER.attributes },
                       civilSkillPoints: {}, heroSkillPoints: {},
                       heroAttributeBonuses: { ...INITIAL_CHARACTER.attributes },
-                      civilPVCurrent: 10, heroPVCurrent: 10, impetus: 0, miracleGifts: [], giftSlots: 3, bondRank: 1,
+                      civilPVCurrent: 10, heroPVCurrent: 20, impetus: 0, miracleGifts: [], giftSlots: 3, bondRank: 1,
                       civilLinks: ['', '', ''], money: 0, resourceCount: 0,
                     }
                   : undefined,

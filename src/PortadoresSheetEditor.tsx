@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { PORTADORES_ORIGINS } from './constants';
 import { CharacterAttributes, CharacterSheet, MiracleGift } from './types';
@@ -76,7 +76,6 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
   const data = character.supplementData || {};
   const [impetusAdjustment, setImpetusAdjustment] = useState(0);
   const activeFace = data.activeFace || 'civil';
-  const heroPV = data.heroPVCurrent ?? 0;
   const civilAttributes = data.civilAttributes || character.attributes;
   const heroAttributeBonuses = data.heroAttributeBonuses || {};
   const heroAttributes: CharacterAttributes = {
@@ -95,12 +94,6 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
   const updateCivilAttribute = (key: keyof CharacterAttributes, value: number) => {
     updateData({ civilAttributes: { ...civilAttributes, [key]: value } });
   };
-
-  useEffect(() => {
-    if (activeFace === 'hero' && !data.noMiracle && heroPV <= 0) {
-      updateData({ activeFace: 'civil', impetus: 0, destransformed: true });
-    }
-  }, [activeFace, data.noMiracle, heroPV, updateData]);
 
   const updateSkillPoints = (face: 'civil' | 'hero', skill: string, value: number) => {
     const key = face === 'civil' ? 'civilSkillPoints' : 'heroSkillPoints';
@@ -175,7 +168,7 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
     );
   };
 
-  const face = activeFace === 'hero' && !data.noMiracle ? 'hero' : 'civil';
+  const face = activeFace;
   const activeAttributes = face === 'hero' ? heroAttributes : civilAttributes;
   const activeSkillValue = (skill: string) => skillFormula(skill, civilAttributes)
     + (originSkillBonuses[skill] || 0)
@@ -193,14 +186,22 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
   const pvMaximum = face === 'civil' ? civilPVMax : heroPVMax;
   const equippedGifts = (data.miracleGifts || []).filter(gift => gift.equipped).length;
   const updateCurrentPV = (whichFace: 'civil' | 'hero', value: number) => {
-    updateData({ [whichFace === 'civil' ? 'civilPVCurrent' : 'heroPVCurrent']: Math.max(0, value) });
+    const updates: Partial<NonNullable<CharacterSheet['supplementData']>> = {
+      [whichFace === 'civil' ? 'civilPVCurrent' : 'heroPVCurrent']: value,
+    };
+    if (whichFace === 'hero' && value <= 0 && activeFace === 'hero') {
+      updates.activeFace = 'civil';
+      updates.destransformed = true;
+    } else if (whichFace === 'hero' && value > 0) {
+      updates.destransformed = false;
+    }
+    updateData(updates);
   };
-  const finishInterlude = () => updateData({ civilPVCurrent: civilPVMax, heroPVCurrent: heroPVMax, destransformed: false });
-  const renderTalentList = (category: 'Talentos Civis' | 'Talentos Heroicos', disabled = false) => {
+  const renderTalentList = (category: 'Talentos Civis' | 'Talentos Heroicos') => {
     const talents = character.abilities.map((ability, index) => ({ ability, index }))
       .filter(({ ability }) => ability.category === category);
     return (
-      <fieldset disabled={disabled} className={`rounded border border-current/15 p-3 ${disabled ? 'opacity-50' : ''}`}>
+      <fieldset className="rounded border border-current/15 p-3">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="font-bold uppercase tracking-widest">{category}</h3>
           <button type="button" onClick={() => onChange({ abilities: [...character.abilities, { name: '', description: '', category }] })} className="flex items-center gap-1 rounded border border-current/25 px-2 py-1 text-[10px] font-bold uppercase"><Plus size={13} /> Talento</button>
@@ -251,7 +252,7 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
                     : data.civilPVCurrent ?? 10,
                   heroPVCurrent: nextOrigin
                     ? 2 * (nextOrigin.basePV + civilAttributes.vigor + 2 * (skillFormula('Fortitude', civilAttributes) + ((nextOrigin.skills as Record<string, number>).Fortitude || 0) + ((data.civilSkillPoints || {}).Fortitude || 0)) + (data.civilPVAdjustment || 0)) + (data.heroPVAdjustment || 0)
-                    : data.heroPVCurrent ?? 10,
+                    : data.heroPVCurrent ?? 20,
                   originAbilityText: nextOrigin?.abilityName || '',
                 },
               });
@@ -278,7 +279,7 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
           </label>
           <div className="flex flex-wrap gap-2 md:col-span-2">
             {(['civil', 'hero'] as const).map(item => (
-              <button type="button" key={item} disabled={item === 'hero' && Boolean(data.noMiracle)} onClick={() => { if (item !== face) updateData({ activeFace: item, impetus: 0, destransformed: false }); }} className={`rounded border px-4 py-2 text-xs font-bold uppercase ${face === item ? 'border-current bg-current/15' : 'border-current/20 opacity-60'} disabled:cursor-not-allowed disabled:opacity-30`}>
+              <button type="button" key={item} onClick={() => { if (item !== face) updateData({ activeFace: item }); }} className={`rounded border px-4 py-2 text-xs font-bold uppercase ${face === item ? 'border-current bg-current/15' : 'border-current/20 opacity-60'}`}>
                 {item === 'civil' ? 'Civil' : 'Herói'}
               </button>
             ))}
@@ -297,18 +298,17 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
               </label>
               <p className="flex flex-col gap-1 text-[10px] font-bold uppercase">PV máximo <strong className="rounded border border-current/20 bg-black/10 p-2 text-sm">{pvMaximum}</strong></p>
             </div>
-            <progress className={`h-3 w-full ${face === 'hero' ? 'accent-[#f0604f]' : 'accent-[#e0796b]'}`} max={Math.max(1, pvMaximum)} value={Math.max(0, Math.min(face === 'civil' ? data.civilPVCurrent || 0 : heroPV, pvMaximum))} />
+            <progress className={`h-3 w-full ${face === 'hero' ? 'accent-[#f0604f]' : 'accent-[#e0796b]'}`} max={Math.max(1, pvMaximum)} value={Math.max(0, Math.min(face === 'civil' ? data.civilPVCurrent || 0 : data.heroPVCurrent ?? 0, pvMaximum))} />
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-[10px] font-bold uppercase">Bônus manual {face === 'hero' ? 'de herói' : ''}
                 <input type="number" value={face === 'civil' ? data.civilPVAdjustment || 0 : data.heroPVAdjustment || 0} onChange={event => updateData({ [face === 'civil' ? 'civilPVAdjustment' : 'heroPVAdjustment']: Number(event.target.value) })} className="rounded border border-current/20 bg-black/10 p-2 text-sm" />
               </label>
-              <button type="button" onClick={finishInterlude} className="self-end rounded border border-current/30 px-3 py-2 text-[10px] font-bold uppercase">Fim de Interlúdio</button>
             </div>
             <div className="grid grid-cols-2 gap-3 rounded border border-current/15 p-3 text-xs">
               <p>Defesa <strong className="ml-1 text-base">{defense}</strong></p>
               <p>Deslocamento <strong className="ml-1 text-base">{movement} m</strong></p>
             </div>
-            {data.destransformed && <p role="status" className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs">Destransformado: só pode se transformar de novo na próxima cena.</p>}
+            {(data.destransformed || (face === 'hero' && (data.heroPVCurrent ?? 0) <= 0)) && <p role="status" className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs">Pelas regras, a forma heroica deveria aguardar um interlúdio para voltar; você pode alternar manualmente e ajustar todos os valores.</p>}
           </div>
         </section>
 
@@ -319,10 +319,13 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
               <p className="text-xs">Bônus de Carregar: +{Math.floor(activeSkillValue('Vontade') / 4)}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => updateData({ impetus: Math.max(0, (data.impetus || 0) + 1) })} className="rounded border border-current/30 px-3 py-2 font-bold">+1</button>
-              <button type="button" onClick={() => updateData({ impetus: Math.max(0, (data.impetus || 0) - 1) })} className="rounded border border-current/30 px-3 py-2 font-bold">−1</button>
+              <button type="button" onClick={() => updateData({ impetus: (data.impetus || 0) + 1 })} className="rounded border border-current/30 px-3 py-2 font-bold">+1</button>
+              <button type="button" onClick={() => updateData({ impetus: (data.impetus || 0) - 1 })} className="rounded border border-current/30 px-3 py-2 font-bold">−1</button>
+              <label className="flex items-center gap-2 text-[10px] font-bold uppercase">Ímpeto atual
+                <input aria-label="Ímpeto atual" type="number" value={data.impetus ?? 0} onChange={event => updateData({ impetus: Number(event.target.value) })} className="w-20 rounded border border-current/30 bg-transparent p-2 text-center" />
+              </label>
               <input aria-label="Valor para alterar Ímpeto" type="number" value={impetusAdjustment} onChange={event => setImpetusAdjustment(Number(event.target.value))} className="w-20 rounded border border-current/30 bg-transparent p-2 text-center" />
-              <button type="button" onClick={() => { updateData({ impetus: Math.max(0, (data.impetus || 0) + impetusAdjustment) }); setImpetusAdjustment(0); }} className="rounded border border-current/30 px-3 py-2 text-xs font-bold uppercase">Aplicar</button>
+              <button type="button" onClick={() => { updateData({ impetus: (data.impetus || 0) + impetusAdjustment }); setImpetusAdjustment(0); }} className="rounded border border-current/30 px-3 py-2 text-xs font-bold uppercase">Aplicar</button>
               <button type="button" onClick={() => updateData({ impetus: 0 })} className="rounded border border-current/30 px-3 py-2 text-xs font-bold uppercase">Zerar</button>
             </div>
           </div>
@@ -332,10 +335,10 @@ export default function PortadoresSheetEditor({ character, onChange, onBack, onS
         </section>
         <section className="grid gap-4 rounded border border-current/25 bg-black/10 p-4 md:grid-cols-2">
           <div className="md:col-span-2">{renderTalentList('Talentos Civis')}</div>
-          {!data.noMiracle && <div className="md:col-span-2">{renderTalentList('Talentos Heroicos', face === 'civil')}</div>}
+          {!data.noMiracle && <div className="md:col-span-2">{renderTalentList('Talentos Heroicos')}</div>}
         </section>
 
-        {!data.noMiracle && <fieldset disabled={face === 'civil'} className={`grid gap-4 rounded border border-current/25 bg-black/10 p-4 md:grid-cols-2 ${face === 'civil' ? 'opacity-55' : ''}`}>
+        {!data.noMiracle && <fieldset className="grid gap-4 rounded border border-current/25 bg-black/10 p-4 md:grid-cols-2">
           <div>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-bold uppercase tracking-widest">Milagre</h2>
