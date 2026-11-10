@@ -52,7 +52,63 @@ export type CharacterSupplement =
   | 'infames-condutores'
   | 'fading-humans'
   | 'ad-astra'
+  | 'nova-ruvia'
+  | 'portadores-milagres'
   | 'nave';
+
+export type NovaVehicleCategory =
+  | 'Bicicleta ou patinete'
+  | 'Moto'
+  | 'Carro'
+  | 'Utilitário'
+  | 'Caminhão'
+  | 'Ônibus'
+  | 'Tanque'
+  | 'Lancha'
+  | 'Barco'
+  | 'Helicóptero'
+  | 'Avião pequeno';
+
+export interface NovaVehicleWeapon {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface NovaVehicle {
+  id: string;
+  name: string;
+  category: NovaVehicleCategory;
+  currentPV: number;
+  maxPV: number;
+  defense: number;
+  movement: number;
+  armor: number;
+  seats: number;
+  security: number;
+  refinements: {
+    engine: number;
+    armor: number;
+    wheels: number;
+    structure: number;
+    electronics: number;
+    security: number;
+  };
+  antiMagicInsulation: boolean;
+  enchantedParts: string;
+  mountedWeapons: NovaVehicleWeapon[];
+}
+
+export interface MiracleGift {
+  id: string;
+  name: string;
+  description: string;
+  actionType: string;
+  impetusCost: number;
+  attackForm: 'Luta' | 'Pontaria' | 'Afinidade' | 'Nenhuma';
+  combinable: boolean;
+  equipped: boolean;
+}
 
 export interface ShipResource {
   current: number;
@@ -151,6 +207,31 @@ export interface SupplementData {
   physicalFrame?: 'Robusto' | 'Padrão' | 'Mirrado';
   attributePoints?: number;
   characterPoints?: number;
+  vehicles?: NovaVehicle[];
+  heroName?: string;
+  activeFace?: 'civil' | 'hero';
+  civilAttributes?: CharacterAttributes;
+  noMiracle?: boolean;
+  heroAttributeBonuses?: Partial<CharacterAttributes>;
+  civilSkillPoints?: Record<string, number>;
+  heroSkillPoints?: Record<string, number>;
+  originAbilityText?: string;
+  civilPVCurrent?: number;
+  heroPVCurrent?: number;
+  civilPVAdjustment?: number;
+  heroPVAdjustment?: number;
+  impetus?: number;
+  miracleTheme?: string;
+  miracleObject?: string;
+  miracleSpark?: string;
+  bondRank?: number;
+  bondBenefits?: string;
+  giftSlots?: number;
+  miracleGifts?: MiracleGift[];
+  miracleWeapon?: string;
+  civilLinks?: string[];
+  civilSecret?: string;
+  money?: number;
   matrixChoice?: 'Portador' | 'Sem Matriz';
   matrixTheme?: string;
   protocols?: SupplementProtocol[];
@@ -159,6 +240,9 @@ export interface SupplementData {
   mainLoadout?: string[];
   secondaryLoadout?: string[];
   snippets?: string[];
+  income?: number;
+  resourceCount?: number;
+  destransformed?: boolean;
 }
 
 export interface CharacterSheet {

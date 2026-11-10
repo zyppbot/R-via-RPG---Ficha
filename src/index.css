@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Spectral:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Patrick+Hand&family=Philosopher:wght@400;700&family=Raleway:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
@@ -149,6 +150,31 @@
   font-family: "Space Grotesk", sans-serif;
 }
 
+.character-card[data-supplement="infames-condutores"] {
+  background-color: #343a40;
+  background-image:
+    linear-gradient(145deg, rgb(255 255 255 / 5%), transparent 48%),
+    radial-gradient(ellipse at 90% 100%, rgb(148 163 184 / 11%), transparent 52%);
+  border-color: #737d87;
+  color: #eef0f2;
+}
+
+.character-card[data-supplement="ad-astra"] {
+  background-color: #170f2b;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 20%, rgb(255 255 255 / 90%) 50%, transparent 100%),
+    radial-gradient(1px 1px at 29% 72%, rgb(216 191 255 / 90%) 50%, transparent 100%),
+    radial-gradient(2px 2px at 48% 34%, rgb(255 255 255 / 85%) 50%, transparent 100%),
+    radial-gradient(1px 1px at 68% 16%, rgb(196 181 253 / 90%) 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 85% 58%, rgb(255 255 255 / 85%) 50%, transparent 100%),
+    radial-gradient(1px 1px at 94% 28%, rgb(216 191 255 / 90%) 50%, transparent 100%),
+    radial-gradient(ellipse at 80% 10%, rgb(91 33 182 / 36%), transparent 55%),
+    radial-gradient(ellipse at 10% 100%, rgb(49 46 129 / 42%), transparent 62%),
+    linear-gradient(135deg, #21143b, #100c20 58%, #1d1233);
+  border-color: rgb(167 139 250 / 42%);
+  color: #f3edff;
+}
+
 [data-supplement="modulo-basico"] {
   --sheet-menu-background: #181818;
   --sheet-menu-color: #e0d2bc;
@@ -178,6 +204,62 @@
   --sheet-menu-background: #0b1323;
   --sheet-menu-color: #e0f2fe;
   color-scheme: dark;
+}
+
+[data-supplement="nova-ruvia"] {
+  --color-ruvia-bg: #05090a;
+  --color-ruvia-card: #0b1113;
+  --color-ruvia-panel: #111a1d;
+  --color-ruvia-text: #e4f2f3;
+  --color-ruvia-accent: #1e9aae;
+  --color-ruvia-border: rgb(30 154 174 / 30%);
+  --sheet-menu-background: #10191c;
+  --sheet-menu-color: #e4f2f3;
+  color: #e4f2f3;
+  color-scheme: dark;
+  font-family: "Philosopher", "Alegreya", serif;
+}
+
+.supplement-sheet[data-supplement="nova-ruvia"] input,
+.supplement-sheet[data-supplement="nova-ruvia"] textarea,
+.supplement-sheet[data-supplement="nova-ruvia"] select,
+.supplement-sheet[data-supplement="nova-ruvia"] button {
+  font-family: "Raleway", "Inter", sans-serif;
+}
+
+[data-supplement="portadores-milagres"] {
+  --sheet-menu-background: #174b3c;
+  --sheet-menu-color: #e5fff2;
+  color-scheme: dark;
+}
+
+.portadores-civil {
+  background-color: #dcefe4;
+  background-image: radial-gradient(ellipse at 10% 10%, #f5fff8, transparent 48%), linear-gradient(135deg, #dcefe4, #c0e0ce);
+  color: #1e3a2f;
+  font-family: "Patrick Hand", "Kalam", cursive;
+}
+
+.portadores-civil h1,
+.portadores-civil h2,
+.portadores-civil h3 {
+  font-family: "Bangers", "Alegreya", serif;
+  letter-spacing: 0.04em;
+}
+
+.portadores-hero {
+  background-color: #163a30;
+  background-image: radial-gradient(ellipse at 50% 0%, #216348, #163a30 68%);
+  color: #f2f7f4;
+  font-family: "Comic Neue", "Inter", sans-serif;
+}
+
+.portadores-hero h1,
+.portadores-hero h2,
+.portadores-hero h3 {
+  font-family: "Bangers", "Alegreya", serif;
+  letter-spacing: 0.04em;
+  color: #6fd3a8;
 }
 
 [data-supplement] select option {

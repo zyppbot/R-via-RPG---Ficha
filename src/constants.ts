@@ -11,7 +11,20 @@ export const SUPPLEMENT_OPTIONS = [
   { value: 'infames-condutores', label: 'Personagem do Suplemento Infames Condutores' },
   { value: 'fading-humans', label: 'Personagem do Suplemento Fading Humans' },
   { value: 'ad-astra', label: 'Personagem do Suplemento Ad Astra' },
+  { value: 'nova-ruvia', label: 'Personagem do Suplemento Nova Rúvia' },
+  { value: 'portadores-milagres', label: 'Personagem do Suplemento Portadores de Milagres' },
   { value: 'nave', label: 'Nave (Suplemento Ad Astra)' },
+] as const;
+
+export const PORTADORES_ORIGINS = [
+  { name: 'A Alma de Palco', basePV: 12, money: 70, income: 20, skills: { 'Atuação': 1, 'Cultura': 1 }, abilityName: 'Ensaio Geral' },
+  { name: 'A Bolsista', basePV: 14, money: 50, income: 15, skills: { 'Ciências': 1, 'Investigação': 1 }, abilityName: 'Noites em Claro' },
+  { name: 'A Cria do Bairro', basePV: 14, money: 50, income: 15, skills: { 'Luta': 1, 'Percepção': 1 }, abilityName: 'Pé no Chão' },
+  { name: 'O Filho do Balcão', basePV: 12, money: 70, income: 20, skills: { 'Diplomacia': 1, 'Manha': 1 }, abilityName: 'Marmita de Casa' },
+  { name: 'O Herdeiro', basePV: 8, money: 180, income: 50, skills: { 'Política': 1, 'Diplomacia': 1 }, abilityName: 'Investimento' },
+  { name: 'O Prodígio Digital', basePV: 10, money: 100, income: 30, skills: { 'Computação': 1, 'Engenharia': 1 }, abilityName: 'Simulação' },
+  { name: 'A Promessa do Esporte', basePV: 10, money: 100, income: 30, skills: { 'Atletismo': 1, 'Fortitude': 1 }, abilityName: 'Condicionamento' },
+  { name: 'O Recém-Chegado', basePV: 12, money: 70, income: 20, skills: { 'Furtividade': 1, 'Enganação': 1 }, abilityName: 'Adaptação' },
 ] as const;
 
 export const FOUR_ELEMENTS_ORIGINS = [
