@@ -112,23 +112,25 @@ export default function SupplementPanels({ supplement, data, attributes, skills,
                 <p className="text-xs opacity-70">Vitalidade/Síntese multiplicam por 1,2; atributos e perícias aumentam 1; sinapses e maestrias avançam uma etapa.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Info size={15} title="PV: +20%, arredondado para cima. Síntese: +20%, arredondado para baixo. Atributo: +1 (máximo 8). Perícia: +1 (máximo 15). Árvore de Sinapse: próxima habilidade. Maestria Sináptica: +1." />
+                <Info size={15} title="PV: +20%, arredondado para cima. Síntese: +20%, arredondado para baixo. Atributo: +1. Perícia: +1. Árvore de Sinapse: próxima habilidade. Maestria Sináptica: +1." />
                 <input
                   type="number"
-                  min={0}
                   aria-label="Pontos de Personagem disponíveis"
                   className={`${input} w-20 text-center text-2xl font-bold`}
                   value={data.characterPoints ?? 8}
-                  onChange={event => patch({ characterPoints: Math.max(0, Number(event.target.value) || 0) })}
+                  onChange={event => patch({ characterPoints: Number(event.target.value) || 0 })}
                 />
               </div>
             </div>
             <p className="mt-2 text-xs">Pontos de Atributo disponíveis: {data.attributePoints ?? 8} • Pontos de Treinamento disponíveis: {trainingPoints}</p>
+            {((data.characterPoints ?? 8) < 0 || (data.attributePoints ?? 8) < 0 || trainingPoints < 0) && (
+              <p className="mt-1 text-[10px] text-amber-400/80">Distribuição acima do recomendado pelo sistema; os valores foram mantidos.</p>
+            )}
             <div className="mt-2 flex gap-2">
               <select className={`${input} min-w-0 flex-1`} value={selectedSpendTarget} onChange={event => setSelectedSpendTarget(event.target.value)}>
               {['Vitalidade', 'Síntese', ...Object.keys(attributes).map(key => `Atributo: ${key}`), ...skills.map(skill => `Perícia: ${skill.name}`), 'Árvore de Sinapse', ...masteries.map(name => `Maestria: ${name}`)].map(target => <option key={target}>{target}</option>)}
               </select>
-              <button type="button" disabled={(data.characterPoints ?? 8) <= 0} onClick={() => onSpendCharacterPoint(selectedSpendTarget)} className="rounded border border-current/30 px-3 text-sm font-bold disabled:opacity-40">Distribuir PP</button>
+              <button type="button" onClick={() => onSpendCharacterPoint(selectedSpendTarget)} className="rounded border border-current/30 px-3 text-sm font-bold">Distribuir PP</button>
             </div>
           </div>
         </div>

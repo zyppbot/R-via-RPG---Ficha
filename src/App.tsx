@@ -69,9 +69,11 @@ import {
   INFAMES_SPECIALIZATIONS,
   AD_ASTRA_SPECIALIZATIONS,
   AD_ASTRA_OFFICES,
-  AD_ASTRA_SPECIES
+  AD_ASTRA_SPECIES,
 } from './constants';
 import { ORIGINS, FOUR_ELEMENTS_ORIGINS as FOUR_ELEMENT_ORIGIN_DATA, INFAMES_ORIGINS as INFAMES_ORIGIN_DATA } from './originData';
+import NovaVehiclesPanel from './NovaVehiclesPanel';
+import PortadoresSheetEditor from './PortadoresSheetEditor';
 
 interface CharacterFolder {
   id: string;
@@ -81,9 +83,9 @@ interface CharacterFolder {
 type CharacterLevel = number | 'none';
 
 function getCharacterLevel(character: CharacterSheet): CharacterLevel {
-  if (character.supplement === 'quatro-elementos' || character.supplement === 'fading-humans') return 'none';
+  if (character.supplement === 'quatro-elementos' || character.supplement === 'fading-humans' || character.supplement === 'portadores-milagres') return 'none';
   if (character.kind === 'nave') return character.shipData?.level || 1;
-  if (character.supplement === 'ad-astra') return Math.max(1, Math.min(20, character.level || 1));
+  if (character.supplement === 'ad-astra') return character.level || 1;
   return Math.max(1, Object.values(character.specializations || {}).reduce((sum, level) => sum + (level || 0), 0));
 }
 
@@ -105,12 +107,12 @@ const SUPPLEMENT_THEMES = {
     card: 'bg-[#f4e6bf] border-[#8f6b45]',
   },
   'infames-condutores': {
-    accent: 'text-[#f5f5f5]',
-    accentSoft: 'text-[#d1d5db]',
-    button: 'bg-[#111827] text-[#f3f4f6]',
-    badge: 'bg-[#111827]/70 border-[#374151] text-[#f3f4f6]',
-    panel: 'bg-[#0f172a]',
-    card: 'bg-[#111827] border-[#374151]',
+    accent: 'text-[#c5cbd1]',
+    accentSoft: 'text-[#aeb5bd]',
+    button: 'bg-[#343a40] text-[#f1f3f5]',
+    badge: 'bg-[#343a40]/70 border-[#737d87] text-[#e2e6ea]',
+    panel: 'bg-[#292e33]',
+    card: 'bg-[#343a40] border-[#737d87]',
   },
   'fading-humans': {
     accent: 'text-[#f9a8d4]',
@@ -126,7 +128,23 @@ const SUPPLEMENT_THEMES = {
     button: 'bg-[#082f49] text-[#e0f2fe]',
     badge: 'bg-[#082f49]/60 border-[#7dd3fc]/30 text-[#7dd3fc]',
     panel: 'bg-[#020b17]',
-    card: 'bg-[#0b1323] border-[#082f49]',
+    card: 'bg-[#170f2b] border-[#7859a6]/60',
+  },
+  'nova-ruvia': {
+    accent: 'text-[#1e9aae]',
+    accentSoft: 'text-[#1e9aae]/70',
+    button: 'bg-[#1e9aae] text-black',
+    badge: 'bg-[#1e9aae]/10 border-[#1e9aae]/30 text-[#1e9aae]',
+    panel: 'bg-[#101719]',
+    card: 'bg-[#080b0c] border-[#1e9aae]/40',
+  },
+  'portadores-milagres': {
+    accent: 'text-[#6fd3a8]',
+    accentSoft: 'text-[#6fd3a8]/70',
+    button: 'bg-[#6fd3a8] text-[#163a30]',
+    badge: 'bg-[#6fd3a8]/10 border-[#6fd3a8]/30 text-[#6fd3a8]',
+    panel: 'bg-[#163a30]',
+    card: 'bg-[#163a30] border-[#6fd3a8]/30',
   },
   nave: {
     accent: 'text-[#7dd3fc]',
@@ -144,6 +162,8 @@ const SUPPLEMENT_CARD_LABELS: Record<CharacterSupplement, string> = {
   'infames-condutores': 'Ficha de Infames Condutores',
   'fading-humans': 'Ficha de Fading Humans',
   'ad-astra': 'Ficha de Ad Astra',
+  'nova-ruvia': 'Ficha de Nova Rúvia',
+  'portadores-milagres': 'Ficha de Portadores de Milagres',
   nave: 'Ficha de Nave • Ad Astra',
 };
 
@@ -215,9 +235,10 @@ export default function App() {
   }, [characters, activeId]);
 
   const activeSupplementTheme = SUPPLEMENT_THEMES[(activeCharacter?.supplement || 'modulo-basico') as keyof typeof SUPPLEMENT_THEMES];
-  const isNoLevelSupplement = activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'fading-humans';
+  const isNoLevelSupplement = activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'fading-humans' || activeCharacter.supplement === 'portadores-milagres';
   const isAdAstra = activeCharacter.supplement === 'ad-astra';
   const isFadingHumans = activeCharacter.supplement === 'fading-humans';
+  const isNovaRuvia = activeCharacter.supplement === 'nova-ruvia';
   const characterOriginOptions = activeCharacter.supplement === 'quatro-elementos'
     ? FOUR_ELEMENTS_ORIGINS
     : activeCharacter.supplement === 'infames-condutores'
@@ -233,9 +254,9 @@ export default function App() {
       : ORIGINS.find(origin => origin.name === activeCharacter.origin);
 
   const totalLevel = useMemo(() => {
-    if (activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'fading-humans') return 1;
+    if (activeCharacter.supplement === 'quatro-elementos' || activeCharacter.supplement === 'fading-humans' || activeCharacter.supplement === 'portadores-milagres') return 1;
     if (activeCharacter.supplement === 'ad-astra') {
-      return Math.max(1, Math.min(20, activeCharacter.level || 1));
+      return activeCharacter.level || 1;
     }
     if (!activeCharacter || !activeCharacter.specializations) return 1;
     const sum = (Object.values(activeCharacter.specializations) as number[]).reduce((a, b) => a + (b || 0), 0);
@@ -350,70 +371,26 @@ export default function App() {
   };
 
   const updateAttr = (key: keyof CharacterAttributes, val: number) => {
-    let boundedValue = activeCharacter.supplement === 'ad-astra'
-      ? Math.max(0, Math.min(val, totalLevel + 3))
-      : Math.max(0, val);
     const updates: Partial<CharacterSheet> = {};
     if (activeCharacter.supplement === 'fading-humans') {
       const currentValue = activeCharacter.attributes[key];
       const available = activeCharacter.supplementData?.attributePoints ?? 8;
-      const delta = boundedValue - currentValue;
-      if (delta > available) boundedValue = currentValue + available;
       updates.supplementData = {
         ...(activeCharacter.supplementData || {}),
-        attributePoints: Math.min(8, Math.max(0, available - (boundedValue - currentValue))),
+        attributePoints: available - (val - currentValue),
       };
     }
     updateCharacter({
       ...updates,
-      attributes: { ...activeCharacter.attributes, [key]: boundedValue },
+      attributes: { ...activeCharacter.attributes, [key]: val },
     });
   };
 
   const updateSkillTraining = (skillName: string, val: number) => {
-    const maxAllowed = activeCharacter.supplement === 'ad-astra' ? totalLevel + 1 : activeCharacter.supplement === 'fading-humans' ? 12 : totalLevel + 2;
-    const clampedVal = Math.max(0, Math.min(val, maxAllowed));
     updateCharacter({
-      skillTraining: { ...activeCharacter.skillTraining, [skillName]: clampedVal }
+      skillTraining: { ...activeCharacter.skillTraining, [skillName]: val }
     });
   };
-
-  // Clamos and caps existing skill training points: max = totalLevel + 2
-  useEffect(() => {
-    if (!activeCharacter || !activeCharacter.skillTraining || !activeCharacter.id) return;
-    const maxAllowed = activeCharacter.supplement === 'ad-astra' ? totalLevel + 1 : activeCharacter.supplement === 'fading-humans' ? 12 : totalLevel + 2;
-    let modified = false;
-    const updatedTraining = { ...activeCharacter.skillTraining };
-    
-    Object.keys(updatedTraining).forEach((skillName) => {
-      const val = updatedTraining[skillName] || 0;
-      if (val > maxAllowed) {
-        updatedTraining[skillName] = maxAllowed;
-        modified = true;
-      } else if (val < 0) {
-        updatedTraining[skillName] = 0;
-        modified = true;
-      }
-    });
-
-    if (modified) {
-      updateCharacter({ skillTraining: updatedTraining });
-    }
-  }, [activeCharacter?.id, activeCharacter?.skillTraining, activeCharacter?.supplement, totalLevel]);
-
-  useEffect(() => {
-    if (activeCharacter.supplement !== 'ad-astra' || !activeCharacter.attributes) return;
-    const cap = totalLevel + 3;
-    const corrected = { ...activeCharacter.attributes };
-    let modified = false;
-    (Object.keys(corrected) as (keyof CharacterAttributes)[]).forEach(key => {
-      if (corrected[key] > cap) {
-        corrected[key] = cap;
-        modified = true;
-      }
-    });
-    if (modified) updateCharacter({ attributes: corrected });
-  }, [activeCharacter.id, activeCharacter.supplement, activeCharacter.attributes, totalLevel]);
 
   const updateStatMax = (key: 'pv' | 'pm', newMax: number) => {
     const stat = activeCharacter.stats[key];
@@ -548,6 +525,23 @@ export default function App() {
           };
           return skill;
         });
+    } else if (supplement === 'nova-ruvia') {
+      skills = skills.map(skill => {
+        if (skill.name === 'Cavalgar') return {
+          ...skill, name: 'Direção',
+          bonus: floor((3 * D + 2 * I + V) / 6) + (training['Direção'] || 0),
+        };
+        if (skill.name === 'Nobreza') return { ...skill, name: 'Política', bonus: skill.bonus - (training.Nobreza || 0) + (training.Política || 0) };
+        if (skill.name === 'Religião') return { ...skill, name: 'Teologia', bonus: skill.bonus - (training.Religião || 0) + (training.Teologia || 0) };
+        if (skill.name === 'Cura') return { ...skill, name: 'Medicina', bonus: skill.bonus - (training.Cura || 0) + (training.Medicina || 0) };
+        return skill;
+      });
+      skills.push(
+        { name: 'Computação', bonus: floor((4 * I + D) / 5) + (training.Computação || 0) },
+        { name: 'Engenharia', bonus: floor((3 * I + 2 * D + F) / 6) + (training.Engenharia || 0) },
+        { name: 'Ciências', bonus: floor((4 * I + E) / 5) + (training.Ciências || 0) },
+        { name: 'Burocracia', bonus: floor((3 * I + 2 * C + V) / 6) + (training.Burocracia || 0) },
+      );
     } else if (supplement === 'ad-astra') {
       const removedArtSkills = new Set(['Culinária', 'Composição', 'Joalheria', 'Dança', 'Artesanato', 'Pintura', 'Costura', 'Escrita', 'Forja']);
       skills = skills.filter(skill => !removedArtSkills.has(skill.name))
@@ -722,7 +716,7 @@ export default function App() {
   const createCharacterFromSupplement = (supplement: CharacterSupplement, customName?: string) => {
     const id = Math.random().toString(36).slice(2, 10);
     const isShip = supplement === 'nave';
-    const initialSpecializations = isShip || supplement === 'quatro-elementos' || supplement === 'fading-humans' || supplement === 'ad-astra'
+    const initialSpecializations = isShip || supplement === 'quatro-elementos' || supplement === 'fading-humans' || supplement === 'ad-astra' || supplement === 'portadores-milagres'
       ? {}
       : { 'Lutador': 1 };
 
@@ -748,7 +742,18 @@ export default function App() {
             ? { subfolds: [], elementRank: 1 }
             : supplement === 'ad-astra'
               ? { matrixChoice: 'Sem Matriz', protocols: [], mainLoadout: [], secondaryLoadout: [], snippets: [] }
-              : undefined,
+              : supplement === 'nova-ruvia'
+                ? { vehicles: [] }
+                : supplement === 'portadores-milagres'
+                  ? {
+                      activeFace: 'civil', noMiracle: false,
+                      civilAttributes: { ...INITIAL_CHARACTER.attributes },
+                      civilSkillPoints: {}, heroSkillPoints: {},
+                      heroAttributeBonuses: { ...INITIAL_CHARACTER.attributes },
+                      civilPVCurrent: 10, heroPVCurrent: 10, impetus: 0, miracleGifts: [], giftSlots: 3, bondRank: 1,
+                      civilLinks: ['', '', ''], money: 0, resourceCount: 0,
+                    }
+                  : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       origin: isShip ? '' : INITIAL_CHARACTER.origin,
@@ -789,7 +794,6 @@ export default function App() {
   const spendCharacterPoint = (target: string) => {
     const data = activeCharacter.supplementData || {};
     const points = data.characterPoints ?? 8;
-    if (points <= 0) return;
     const nextData = { ...data, characterPoints: points - 1 };
     if (target === 'Vitalidade') {
       const nextMaximum = Math.ceil(statsWithOrigin.pv.max * 1.2);
@@ -803,23 +807,14 @@ export default function App() {
     }
     if (target.startsWith('Atributo: ')) {
       const key = target.slice('Atributo: '.length) as keyof CharacterAttributes;
-      if (activeCharacter.attributes[key] >= 8) {
-        alert('Esse atributo já atingiu o limite de 8 pontos para Pontos de Personagem.');
-        return;
-      }
       updateCharacter({
         attributes: { ...activeCharacter.attributes, [key]: activeCharacter.attributes[key] + 1 },
-        supplementData: { ...nextData, attributePoints: Math.max(0, (data.attributePoints ?? 8) - 1) },
+        supplementData: { ...nextData, attributePoints: (data.attributePoints ?? 8) - 1 },
       });
       return;
     }
     if (target.startsWith('Perícia: ')) {
       const skillName = target.slice('Perícia: '.length);
-      const skill = currentSkills.find(item => item.name === skillName);
-      if ((skill?.bonus || 0) >= 15) {
-        alert('Essa perícia já atingiu o limite de 15 pontos para Pontos de Personagem.');
-        return;
-      }
       updateCharacter({ skillTraining: { ...activeCharacter.skillTraining, [skillName]: (activeCharacter.skillTraining[skillName] || 0) + 1 }, supplementData: nextData });
       return;
     }
@@ -851,14 +846,25 @@ export default function App() {
     ? ['Habilidades', 'Fardos', 'Habilidades Sinápticas']
     : activeCharacter.supplement === 'ad-astra'
       ? ['Habilidades de Espécie', 'Habilidades de Especialização', 'Habilidades de Ofício', 'Talentos']
-      : activeCharacter.supplement === 'quatro-elementos'
-        ? ['Habilidades e Talentos']
+      : activeCharacter.supplement === 'nova-ruvia'
+        ? ['Habilidades', 'Talentos']
+        : activeCharacter.supplement === 'portadores-milagres'
+          ? ['Talentos Civis', 'Talentos Heroicos']
+          : activeCharacter.supplement === 'quatro-elementos'
+            ? ['Habilidades e Talentos']
         : ['Habilidades', 'Talentos'];
   const abilityEntries = activeCharacter.abilities.map((ability, index) => ({
     ability,
     index,
     category: ability.category || abilityCategories[0],
   }));
+  const novaTalentsUsed = activeCharacter.abilities.filter(ability => (ability.category || abilityCategories[0]) === 'Talentos').length;
+  const novaTalentSlots = Math.min(5, 1 + [5, 10, 15, 20].filter(level => totalLevel >= level).length);
+  const expectedSkillTraining = isAdAstra ? totalLevel + 1 : isFadingHumans ? 12 : totalLevel + 2;
+  const hasOvertrainedSkill = currentSkills.some(skill => (activeCharacter.skillTraining[skill.name] || 0) > expectedSkillTraining);
+  const hasOverallocatedAttribute = isFadingHumans
+    ? (activeCharacter.supplementData?.attributePoints ?? 8) < 0
+    : isAdAstra && Object.values(activeCharacter.attributes).some(value => value > totalLevel + 3);
 
   const deleteCharacter = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1171,13 +1177,18 @@ export default function App() {
                 setActiveId(char.id);
                 setView('sheet');
               }}
-              className={`p-6 rounded-sm cursor-pointer transition-all group ${char.kind === 'nave' ? 'bg-[#0b1323] border border-sky-300/30 hover:border-sky-200' : `${SUPPLEMENT_THEMES[(char.supplement || 'modulo-basico')].card} hover:border-ruvia-accent`}`}
+              className={`character-card p-6 rounded-sm cursor-pointer transition-all group ${char.kind === 'nave' ? 'bg-[#0b1323] border border-sky-300/30 hover:border-sky-200' : char.supplement === 'portadores-milagres' ? 'border border-[#6fd3a8]/40 bg-gradient-to-r from-[#dcefe4] to-[#163a30] hover:border-[#6fd3a8]' : `${SUPPLEMENT_THEMES[(char.supplement || 'modulo-basico')].card} ${char.supplement === 'infames-condutores' ? 'hover:border-[#aeb5bd]' : char.supplement === 'ad-astra' ? 'hover:border-[#b49ade]' : 'hover:border-ruvia-accent'}`}`}
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className={`text-2xl font-bold transition-colors ${char.kind === 'nave' ? 'text-sky-100 group-hover:text-sky-300' : 'text-white group-hover:text-ruvia-accent'}`}>
+                  <h3 className={`text-2xl font-bold transition-colors ${char.kind === 'nave' ? 'text-sky-100 group-hover:text-sky-300' : char.supplement === 'portadores-milagres' ? 'text-[#163a30]' : 'text-white group-hover:text-ruvia-accent'}`}>
                     {char.kind === 'nave' ? <span className="mr-2 inline-flex align-middle"><Rocket size={20} /></span> : null}
-                    {char.name}
+                    {char.supplement === 'portadores-milagres' ? (
+                      <span className="grid grid-cols-2 gap-3">
+                        <span className="font-['Patrick_Hand']">{char.name || 'Nome Civil'}</span>
+                        <span className="font-['Bangers'] text-[#f2f7f4]">{char.supplementData?.heroName || 'Nome de Herói'}</span>
+                      </span>
+                    ) : char.name}
                   </h3>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.entries(char.specializations || {}).filter(([_, lvl]: [string, any]) => (lvl as number) > 0).map(([name, lvl]: [string, any]) => (
@@ -1193,7 +1204,7 @@ export default function App() {
                 <div className="text-right">
                   {char.kind === 'nave' ? (
                     <p className="text-xs uppercase tracking-widest text-sky-300">{char.shipData?.size || 'Pequena'}</p>
-                  ) : char.supplement !== 'quatro-elementos' && char.supplement !== 'fading-humans' ? (
+                  ) : char.supplement !== 'quatro-elementos' && char.supplement !== 'fading-humans' && char.supplement !== 'portadores-milagres' ? (
                     <>
                       <p className="text-[10px] uppercase tracking-widest text-ruvia-accent/60">Nível Total</p>
                       <p className="text-xl font-black">{char.supplement === 'ad-astra' ? char.level || 1 : (Object.values(char.specializations || {}) as number[]).reduce((a, b) => a + (b || 0), 0) || 1}</p>
@@ -1202,7 +1213,7 @@ export default function App() {
                 </div>
               </div>
               
-              <div data-character-stats={char.kind === 'nave' ? 'hidden' : 'visible'} className="mt-6 flex flex-wrap gap-4 text-[10px] uppercase font-bold opacity-60">
+              <div data-character-stats={char.kind === 'nave' || char.supplement === 'portadores-milagres' ? 'hidden' : 'visible'} className="mt-6 flex flex-wrap gap-4 text-[10px] uppercase font-bold opacity-60">
                 <div className="flex items-center gap-1">
                   <Heart size={10} className="text-red-500" /> 
                   {(() => {
@@ -1310,6 +1321,22 @@ export default function App() {
           />
           {importDialog}
         </>
+    );
+  }
+
+  if (activeCharacter.supplement === 'portadores-milagres') {
+    return (
+      <>
+        <input type="file" ref={fileInputRef} onChange={importCharacters} className="hidden" accept=".json" />
+        <PortadoresSheetEditor
+          character={activeCharacter}
+          onChange={updateCharacter}
+          onBack={() => setView('list')}
+          onSave={exportCurrentCharacter}
+          onLoad={() => fileInputRef.current?.click()}
+        />
+        {importDialog}
+      </>
     );
   }
 
@@ -1473,8 +1500,9 @@ export default function App() {
                 <div className="flex items-center gap-1 bg-ruvia-panel px-2 border border-ruvia-accent/30 self-start md:self-end">
                   <span className="text-[10px] text-ruvia-accent font-bold">NÍVEL TOTAL</span>
                   {isAdAstra ? (
-                    <input type="number" min={1} max={20} className="bg-transparent text-white w-10 font-bold text-center text-sm" value={totalLevel} onChange={e => updateCharacter({ level: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })} />
+                    <input type="number" className="bg-transparent text-white w-10 font-bold text-center text-sm" value={totalLevel} onChange={e => updateCharacter({ level: Number(e.target.value) || 0 })} />
                   ) : <span className="text-white w-10 font-bold text-center text-sm">{totalLevel.toString().padStart(2, '0')}</span>}
+                  {isNovaRuvia && totalLevel > 20 && <span className="ml-2 text-[9px] text-amber-400/80">acima do nível recomendado; valor mantido</span>}
                 </div>
               </div>}
             </div>
@@ -1493,6 +1521,7 @@ export default function App() {
               <div className="relative group">
                 <div className="absolute -left-4 top-0 w-1 h-full bg-ruvia-accent"></div>
                 <p className="text-xs uppercase tracking-widest text-ruvia-accent mb-4 font-bold">Atributos</p>
+                {hasOverallocatedAttribute && <p className="mb-3 text-[10px] text-amber-400/80">Distribuição acima do recomendado pelo sistema; os valores foram mantidos.</p>}
                 
                 <div className="grid grid-cols-1 gap-4">
                   {[
@@ -1835,6 +1864,14 @@ export default function App() {
                 onChange={updateSupplementData}
                 onSpendCharacterPoint={spendCharacterPoint}
               />
+              {isNovaRuvia && (
+                <div className="mt-4">
+                  <NovaVehiclesPanel
+                    vehicles={activeCharacter.supplementData?.vehicles || []}
+                    onChange={vehicles => updateSupplementData({ vehicles })}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1845,6 +1882,7 @@ export default function App() {
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Treinamento</span>
               <h2 className="text-2xl font-black italic uppercase italic">Perícias</h2>
+              {hasOvertrainedSkill && <span className="mt-1 text-[10px] text-amber-400/80">Há perícias acima do treinamento recomendado; os valores foram mantidos.</span>}
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 md:justify-end">
               <div className="flex flex-col items-center rounded-sm border border-ruvia-accent/30 bg-ruvia-accent/10 px-4 py-2">
@@ -1924,6 +1962,11 @@ export default function App() {
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black text-ruvia-accent uppercase tracking-widest leading-none">Poderes & Especialidades</span>
                     <h2 className="text-lg sm:text-2xl font-black italic uppercase">{category}</h2>
+                    {isNovaRuvia && category === 'Talentos' && (
+                      <span className={`mt-1 text-[10px] font-bold uppercase tracking-wider ${novaTalentsUsed > novaTalentSlots ? 'text-red-500' : 'text-ruvia-accent/80'}`}>
+                        Talentos: {novaTalentsUsed} / {novaTalentSlots}
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => updateCharacter({ abilities: [...activeCharacter.abilities, { name: `Nova ${category}`, description: 'Descrição...', category }] })}
